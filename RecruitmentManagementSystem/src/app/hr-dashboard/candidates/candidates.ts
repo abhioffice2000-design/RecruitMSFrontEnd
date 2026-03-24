@@ -185,8 +185,16 @@ interface CandidateRow {
       <div class="drawer-body" *ngIf="selectedCandidate">
         <div class="profile-hero">
           <div class="avatar-large">{{ getInitials(selectedCandidate.candidate_name) }}</div>
-          <div>
-            <h2 class="profile-name">{{ selectedCandidate.candidate_name }}</h2>
+          <div class="profile-hero-info">
+            <div class="profile-name-row">
+              <h2 class="profile-name">{{ selectedCandidate.candidate_name }}</h2>
+              <button *ngIf="selectedCandidate._raw['resume_url']"
+                      class="btn-download-resume"
+                      (click)="downloadResume(selectedCandidate._raw['resume_url'])"
+                      title="Download Resume">
+                <i class="fas fa-file-download"></i> Download Resume
+              </button>
+            </div>
             <span class="profile-email">{{ selectedCandidate.candidate_email }}</span>
           </div>
         </div>
@@ -812,8 +820,28 @@ interface CandidateRow {
     }
     .drawer-body { padding: 24px; }
     .profile-hero { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
+    .profile-hero-info { flex: 1; min-width: 0; }
+    .profile-name-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; }
     .avatar-large { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1a3a7a); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 22px; flex-shrink: 0; }
-    .profile-name { margin: 0; font-size: 20px; color: #1e293b; }
+    .profile-name { margin: 0; font-size: 20px; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .btn-download-resume {
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid #2563eb;
+      background: #eff6ff;
+      color: #2563eb;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+      white-space: nowrap;
+      &:hover { background: #2563eb; color: #fff; transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2); }
+      &:active { transform: translateY(0); }
+      i { font-size: 14px; }
+    }
     .profile-email { font-size: 14px; color: #64748b; }
     .profile-section { margin-bottom: 24px;
       h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8; margin: 0 0 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
@@ -1480,6 +1508,25 @@ export class CandidatesTab implements OnInit {
   }> = [];
 
   constructor(private soap: SoapService, private router: Router) {}
+
+  downloadResume(url: string | undefined): void {
+    if (!url) return;
+    // Handle data URL by creating a temporary link
+    if (url.startsWith('data:')) {
+      const link = document.createElement('a');
+      link.href = url;
+      // Try to determine extension from data URL
+      const mime = url.split(';')[0].split(':')[1] || 'application/pdf';
+      const ext = mime.includes('word') ? 'docx' : mime.includes('pdf') ? 'pdf' : 'bin';
+      link.download = `Resume_${this.selectedCandidate?.candidate_name.replace(/\s+/g, '_')}.${ext}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else {
+      // Direct URL
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+  }
 
   ngOnInit(): void {
     this.loggedInUserId = sessionStorage.getItem('loggedInUserId') || '';
