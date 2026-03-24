@@ -11,11 +11,10 @@ import { SoapService } from '../services/soap.service';
   styleUrls: ['./admin-dashboard.scss']
 })
 export class AdminDashboard implements OnInit {
-  
+
   metrics = [
     { id: 'candidates', title: 'Total Candidates', value: '...', trend: 'Live', isPositive: true, icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
-    { id: 'jobs', title: 'Active Jobs', value: '42', trend: '+4%', isPositive: true, icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
-    { id: 'interviews', title: 'Upcoming Interviews', value: '18', trend: '0%', isPositive: true, icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' }
+    { id: 'jobs', title: 'Active Jobs', value: '42', trend: '+4%', isPositive: true, icon: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' }
   ];
 
   recentActivities = [
@@ -26,7 +25,7 @@ export class AdminDashboard implements OnInit {
     { id: 5, candidate: 'Emily Davis', role: 'UI/UX Designer', time: '1 day ago', status: 'Completed' }
   ];
 
-  constructor(private soapService: SoapService, private router: Router) {}
+  constructor(private soapService: SoapService, private router: Router) { }
 
   ngOnInit() {
     this.fetchMetrics();
@@ -35,23 +34,67 @@ export class AdminDashboard implements OnInit {
 
   fetchRecentActivities() {
     this.soapService.getRecentActivities().then(data => {
-      if (!data || data.length === 0) return;
-      this.recentActivities = data.map((item, index) => {
-        const firstName = item['first_name'] || item['Candidate_first_name'] || '';
-        const lastName = item['last_name'] || item['Candidate_last_name'] || '';
-        const fullName = (firstName || lastName) ? `${firstName} ${lastName}`.trim() : (item['candidate_name'] || item['name'] || 'N/A');
+      if (!data || data.length === 0) {
+        console.log('No recent activities found');
+        return;
+      }
+
+      this.recentActivities = data.map((item: any, index: number) => {
+        // Handle potential nested structures or different field names
+        console.log("item is", item);
+
+        const jobTitle =
+          item['ts_job_requisitions']?.['job_title'] ||
+          item['title'] ||
+          item['Title'] ||
+          'No Role Specified';
+
+        const candidateName =
+          item['candidate_name'] ||
+          (item['first_name'] && item['last_name'] ? `${item['first_name']} ${item['last_name']}` : null) ||
+          item['name'] ||
+          item['email'] ||
+          'Unknown Candidate';
 
         return {
           id: index + 1,
-          candidate: fullName,
-          role: item['job_title'] || 'N/A',
+          candidate: candidateName,
+          role: jobTitle,
           status: item['status'] || 'Pending',
-          time: item['applied_at'] || 'Recently'
+          time: this.formatProfessionalTime(item['applied_at'] || item['created_at'] || item['time'] || item['updated_at'])
         };
       });
     }).catch(err => {
       console.error('Failed to fetch recent activities:', err);
     });
+  }
+
+  formatProfessionalTime(timeStr: any): string {
+    if (!timeStr) return 'Recently';
+    try {
+      const date = new Date(timeStr);
+      if (isNaN(date.getTime())) return timeStr;
+
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+
+      if (diffMins < 0) return 'Just now'; // Future dates?
+      if (diffMins < 1) return 'Just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffMins < 1440) {
+        const hours = Math.floor(diffMins / 60);
+        return `${hours}h ago`;
+      }
+
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: now.getFullYear() !== date.getFullYear() ? 'numeric' : undefined
+      });
+    } catch {
+      return timeStr;
+    }
   }
 
   fetchMetrics() {
@@ -79,17 +122,6 @@ export class AdminDashboard implements OnInit {
       if (jobsMetric) jobsMetric.value = '0';
     });
 
-    // Fetch actual interviews count from DB
-    this.soapService.getAllInterviewsCount().then(count => {
-      const interviewsMetric = this.metrics.find(m => m.id === 'interviews');
-      if (interviewsMetric) {
-        interviewsMetric.value = count.toLocaleString();
-      }
-    }).catch(err => {
-      console.error('Failed to fetch interviews count:', err);
-      const interviewsMetric = this.metrics.find(m => m.id === 'interviews');
-      if (interviewsMetric) interviewsMetric.value = '0';
-    });
   }
 
   onMetricClick(metricId: string) {

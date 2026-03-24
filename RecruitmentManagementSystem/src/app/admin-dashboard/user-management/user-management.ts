@@ -26,18 +26,21 @@ export enum UserStatus {
 export class UserManagement implements OnInit {
   activeTab = 'managers';
   showAddModal = false;
-  showConfirmModal = false; // For deletion confirmation
   modalType = '';
   showToast = false;
   toastMessage = '';
   toastType: 'success' | 'error' = 'success';
   isSaving = false;
-  isDeleting = false;
   isEditMode = false;
   selectedEntry: any = null;
 
+  // Reset Password Modal
+  showResetPasswordModal = false;
+  resetPasswordUser: any = null;
+  resetPasswordData = { newPassword: '', confirmPassword: '' };
+  isResettingPassword = false;
+
   newEntry: any = {};
-  itemToDelete: any = null;
 
   // Expose enum to template
   readonly UserRole = UserRole;
@@ -46,7 +49,6 @@ export class UserManagement implements OnInit {
     { label: 'HR Personnel', value: UserRole.HR },
     { label: 'Interviewer', value: UserRole.INTERVIEWER }
   ];
-  listToDeleteFrom: any[] = [];
   dbDepartments: Record<string, string>[] = [];
 
   managers: any[] = [];
@@ -56,6 +58,48 @@ export class UserManagement implements OnInit {
 
   // Search
   searchQuery: string = '';
+
+  // Pagination
+  currentPage: number = 1;
+  itemsPerPage: number = 5;
+
+  onSearchChange() {
+    this.currentPage = 1;
+  }
+
+  getPaginatedData(data: any[]) {
+    if (!data) return [];
+    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+    return data.slice(startIndex, startIndex + this.itemsPerPage);
+  }
+
+  getTotalPages(data: any[]) {
+    if (!data) return 0;
+    return Math.ceil(data.length / this.itemsPerPage);
+  }
+
+  nextPage(data: any[]) {
+    if (this.currentPage < this.getTotalPages(data)) {
+      this.currentPage++;
+    }
+  }
+
+  prevPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+    }
+  }
+
+  goToPage(page: number) {
+    this.currentPage = page;
+  }
+
+  getPaginationText(data: any[]) {
+    if (!data || data.length === 0) return 'No entries found';
+    const start = (this.currentPage - 1) * this.itemsPerPage + 1;
+    const end = Math.min(this.currentPage * this.itemsPerPage, data.length);
+    return `Showing ${start} to ${end} of ${data.length} entries`;
+  }
 
   get filteredManagers() {
     if (!this.searchQuery) return this.managers;
@@ -96,8 +140,7 @@ export class UserManagement implements OnInit {
       i.id.toLowerCase().includes(q) ||
       i.name.toLowerCase().includes(q) ||
       i.email.toLowerCase().includes(q) ||
-      (i.department && i.department.toLowerCase().includes(q)) ||
-      (i.expertise && i.expertise.toLowerCase().includes(q))
+      (i.department && i.department.toLowerCase().includes(q))
     );
   }
 
@@ -184,35 +227,47 @@ export class UserManagement implements OnInit {
     this.fetchInitialData();
   }
 
-  private fetchInitialData() {
-    this.loadDepartmentsData().then(() => {
-      this.fetchAllData();
-    });
+  private async fetchInitialData() {
+    try {
+      // 1. Fetch managers first so we can resolve names for department heads
+      await this.fetchManagers();
+      // 2. Fetch departments
+      await this.loadDepartmentsData();
+      // 3. Fetch others in parallel
+      this.fetchHRMembers();
+      this.fetchInterviewers();
+    } catch (err) {
+      console.error('Failed to initialize dashboard data:', err);
+    }
   }
 
   fetchAllData() {
-    this.fetchManagers();
-    this.fetchHRMembers();
-    this.loadDepartmentsData();
-    this.fetchInterviewers();
+    this.fetchInitialData();
   }
 
   loadDepartmentsData(): Promise<void> {
     return this.soapService.getAllDepartments().then(depts => {
       this.dbDepartments = depts;
-      this.departments = depts.map(d => ({
-        id: d['department_id'],
-        name: d['department_name'],
-        head: 'TBD',
-        status: 'Active'
-      }));
+      this.departments = depts.map(d => {
+        const headId = d['temp1'] || '';
+        const headManager = this.managers.find(m => m.id === headId);
+        return {
+          id: d['department_id'],
+          name: d['department_name'],
+          head: headManager ? headManager.name : (headId || 'TBD'),
+          headId: headId,
+          employees: 0,
+          status: UserStatus.ACTIVE,
+          _raw: d
+        };
+      });
     }).catch(err => {
       console.error('Failed to load departments:', err);
     });
   }
 
-  fetchManagers() {
-    this.soapService.getAllManagers().then(data => {
+  fetchManagers(): Promise<void> {
+    return this.soapService.getAllManagers().then(data => {
       this.managers = data.map(m => {
         const deptId = m['department_id'] || m['Department_id'];
         const deptObj = this.dbDepartments.find((d: any) => d['department_id'] === deptId);
@@ -233,8 +288,8 @@ export class UserManagement implements OnInit {
     });
   }
 
-  fetchHRMembers() {
-    this.soapService.getAllHR().then(data => {
+  fetchHRMembers(): Promise<void> {
+    return this.soapService.getAllHR().then(data => {
       this.hrMembers = data.map(m => {
         const deptId = m['department_id'] || m['Department_id'];
         const deptObj = this.dbDepartments.find((d: any) => d['department_id'] === deptId);
@@ -255,8 +310,8 @@ export class UserManagement implements OnInit {
     });
   }
 
-  fetchInterviewers() {
-    this.soapService.getAllInterviewers().then(data => {
+  fetchInterviewers(): Promise<void> {
+    return this.soapService.getAllInterviewers().then(data => {
       this.interviewers = data.map(m => {
         const deptId = m['department_id'] || m['Department_id'];
         const deptObj = this.dbDepartments.find((d: any) => d['department_id'] === deptId);
@@ -268,7 +323,6 @@ export class UserManagement implements OnInit {
           email: m['email'] || m['Email'] || '',
           departmentId: deptId,
           department: deptObj ? deptObj['department_name'] : (m['department_id'] || m['Department_id'] || 'N/A'),
-          expertise: m['temp1'] || 'General',
           status: m['status'] || m['Status'] || UserStatus.ACTIVE,
           _raw: m
         };
@@ -280,6 +334,7 @@ export class UserManagement implements OnInit {
 
   switchTab(tab: string) {
     this.activeTab = tab;
+    this.currentPage = 1; // Reset to page 1
     this.refreshActiveTab();
   }
 
@@ -311,7 +366,7 @@ export class UserManagement implements OnInit {
     if (type === 'department') {
       this.newEntry = {
         name: item.name,
-        head: item.head
+        managerId: item.headId || ''
       };
     } else {
       this.newEntry = {
@@ -319,7 +374,6 @@ export class UserManagement implements OnInit {
         lastName: item.lastName,
         email: item.email,
         department: item.departmentId,
-        expertise: item.expertise,
         status: item.status,
         role: item._raw.role || item._raw.Role
       };
@@ -596,9 +650,14 @@ export class UserManagement implements OnInit {
 
     this.isSaving = true;
     try {
-      const oldData = { department_id: this.selectedEntry.id };
+      const oldData = {
+        department_id: this.selectedEntry.id,
+        department_name: this.selectedEntry.name,
+        temp1: this.selectedEntry.headId || ''
+      };
       const newData = {
         department_name: this.newEntry.name,
+        manager_id: this.newEntry.managerId || '',
         updated_by: 'admin'
       };
 
@@ -606,9 +665,12 @@ export class UserManagement implements OnInit {
 
       const idx = this.departments.findIndex(d => d.id === this.selectedEntry.id);
       if (idx > -1) {
+        const headManager = this.managers.find(m => m.id === newData.manager_id);
         this.departments[idx] = {
           ...this.selectedEntry,
-          name: newData.department_name
+          name: newData.department_name,
+          head: headManager ? headManager.name : (newData.manager_id || 'TBD'),
+          headId: newData.manager_id
         };
       }
 
@@ -734,6 +796,15 @@ export class UserManagement implements OnInit {
         role: 'HR_RMST1'
       });
 
+      console.log('[UserManagement] Registering HR in DB...', { firstName, lastName, email, role: UserRole.HR });
+
+      // Attempt to find a "Human Resources" or "HR" department to assign
+      const hrDept = this.dbDepartments.find(d =>
+        (d['department_name'] || '').toLowerCase().includes('hr') ||
+        (d['department_name'] || '').toLowerCase().includes('human resources')
+      );
+      const targetDeptId = hrDept ? hrDept['department_id'] : '';
+
       const dbResult = await this.soapService.insertUser({
         first_name: firstName,
         last_name: lastName,
@@ -741,10 +812,10 @@ export class UserManagement implements OnInit {
         password_hash: password,
         role: UserRole.HR,
         status: UserStatus.ACTIVE,
-        department_id: departmentId,
-        created_by: 'admin',
-        temp1: specialization
+        department_id: targetDeptId,
+        created_by: 'admin'
       });
+      console.log('[UserManagement] HR DB Result:', dbResult);
 
       // Update local UI list
       this.hrMembers.unshift({
@@ -762,6 +833,7 @@ export class UserManagement implements OnInit {
     } catch (err: any) {
       console.error('Failed to register HR member:', err);
       const errorDetail = err?.responseText || err?.jqXHR?.responseText || 'Cordys returned an error.';
+      console.log('Full Error Response Body:', errorDetail);
       this.showToastMessage(`Failed to register HR member: ${errorDetail}`, 'error');
     } finally {
       this.isSaving = false;
@@ -804,6 +876,16 @@ export class UserManagement implements OnInit {
         role: 'Interviewer_RMST1'
       });
 
+      console.log('[UserManagement] Registering Interviewer in DB...', { firstName, lastName, email, role: UserRole.INTERVIEWER });
+
+      // For Interviewer, we might also want to assign a department if found
+      const intDept = this.dbDepartments.find(d =>
+        (d['department_name'] || '').toLowerCase().includes('engineering') ||
+        (d['department_name'] || '').toLowerCase().includes('it') ||
+        (d['department_name'] || '').toLowerCase().includes('technical')
+      );
+      const targetDeptId = intDept ? intDept['department_id'] : '';
+
       const dbResult = await this.soapService.insertUser({
         first_name: firstName,
         last_name: lastName,
@@ -811,12 +893,10 @@ export class UserManagement implements OnInit {
         password_hash: password,
         role: UserRole.INTERVIEWER,
         status: UserStatus.ACTIVE,
-        department_id: departmentId,
-        created_by: 'admin',
-        temp1: expertise,
-        temp2: '0',
-        temp3: '0'
+        department_id: targetDeptId,
+        created_by: 'admin'
       });
+      console.log('[UserManagement] Interviewer DB Result:', dbResult);
 
       // Update local UI list
       this.interviewers.unshift({
@@ -824,7 +904,6 @@ export class UserManagement implements OnInit {
         name: firstName + ' ' + lastName,
         email: email,
         department: 'N/A',
-        expertise: 'N/A',
         status: UserStatus.ACTIVE
       });
 
@@ -834,6 +913,7 @@ export class UserManagement implements OnInit {
     } catch (err: any) {
       console.error('Failed to register interviewer:', err);
       const errorDetail = err?.responseText || err?.jqXHR?.responseText || 'Cordys returned an error.';
+      console.log('Full Error Response Body:', errorDetail);
       this.showToastMessage(`Failed to register interviewer: ${errorDetail}`, 'error');
     } finally {
       this.isSaving = false;
@@ -848,19 +928,21 @@ export class UserManagement implements OnInit {
 
     // Capture values before closeModal() clears newEntry
     const deptName = this.newEntry.name;
-    const deptHead = this.newEntry.head || 'TBD';
-    const deptBudget = this.newEntry.budget || '$0';
+    const managerId = this.newEntry.managerId || '';
 
     this.soapService.insertDepartment({
       department_name: deptName,
-      created_by: 'admin'   // Replace with actual logged-in user when available
+      manager_id: managerId,
+      created_by: 'admin'
     })
       .then(() => {
+        // Find manager name for local update
+        const headManager = this.managers.find(m => m.id === managerId);
         // Add to local UI list so the table updates immediately
         this.departments.unshift({
           id: 'DEPT-' + String(this.departments.length + 1).padStart(2, '0'),
           name: deptName,
-          head: deptHead,
+          head: headManager ? headManager.name : (managerId || 'TBD'),
           employees: 0,
           status: UserStatus.ACTIVE
         });
@@ -878,6 +960,14 @@ export class UserManagement implements OnInit {
 
   toggleStatus(item: any) {
     const newStatus = item.status === UserStatus.ACTIVE ? UserStatus.INACTIVE : UserStatus.ACTIVE;
+
+    // Departments don't have a dedicated status update in DB yet
+    if (this.activeTab === 'departments') {
+      item.status = newStatus;
+      this.showToastMessage(`Status updated to ${newStatus} for ${item.name}`);
+      return;
+    }
+
     this.soapService.updateUserStatus(item, newStatus)
       .then(() => {
         item.status = newStatus;
@@ -889,40 +979,71 @@ export class UserManagement implements OnInit {
       });
   }
 
-  deleteItem(list: any[], item: any) {
-    this.itemToDelete = item;
-    this.listToDeleteFrom = list;
-    this.showConfirmModal = true;
-  }
-
-  cancelDelete() {
-    this.showConfirmModal = false;
-    this.itemToDelete = null;
-    this.listToDeleteFrom = [];
-  }
-
-  confirmDelete() {
-    if (!this.itemToDelete) return;
-
-    this.isDeleting = true;
-    this.soapService.deleteUser(this.itemToDelete)
-      .then(() => {
-        const idx = this.listToDeleteFrom.indexOf(this.itemToDelete);
-        if (idx > -1) this.listToDeleteFrom.splice(idx, 1);
-        this.showToastMessage(`User ${this.itemToDelete.name} deleted successfully.`);
-        this.cancelDelete();
-      })
-      .catch(err => {
-        console.error('Failed to delete user:', err);
-        this.showToastMessage('Failed to delete user from database.', 'error');
-      })
-      .finally(() => {
-        this.isDeleting = false;
-      });
-  }
-
   resetPassword(user: any) {
-    this.showToastMessage(`Password reset link sent to ${user.email}`);
+    this.resetPasswordUser = user;
+    this.resetPasswordData = { newPassword: '', confirmPassword: '' };
+    this.showResetPasswordModal = true;
+  }
+
+  closeResetPasswordModal() {
+    this.showResetPasswordModal = false;
+    this.resetPasswordUser = null;
+    this.resetPasswordData = { newPassword: '', confirmPassword: '' };
+  }
+
+  async saveResetPassword() {
+    if (!this.resetPasswordData.newPassword || !this.resetPasswordData.confirmPassword) {
+      this.showToastMessage('Please fill in both password fields.', 'error');
+      return;
+    }
+
+    if (this.resetPasswordData.newPassword !== this.resetPasswordData.confirmPassword) {
+      this.showToastMessage('Passwords do not match.', 'error');
+      return;
+    }
+
+    if (this.resetPasswordData.newPassword.length < 6) {
+      this.showToastMessage('Password must be at least 6 characters.', 'error');
+      return;
+    }
+
+    this.isResettingPassword = true;
+    const user = this.resetPasswordUser;
+    const newPassword = this.resetPasswordData.newPassword;
+
+    try {
+      // Step 1: Update password in the database (ts_users.password_hash)
+      const rawData = user._raw || {};
+      await this.soapService.updateUser(rawData, {
+        first_name: rawData.first_name || rawData.First_name || user.firstName,
+        last_name: rawData.last_name || rawData.Last_name || user.lastName,
+        email: rawData.email || rawData.Email || user.email,
+        password_hash: newPassword,
+        role: rawData.role || rawData.Role,
+        status: rawData.status || rawData.Status || user.status,
+        department_id: rawData.department_id || rawData.Department_id || '',
+        updated_by: 'admin'
+      });
+
+      // Step 2: Update Cordys org password (best-effort, non-blocking)
+      try {
+        const cordysUsername = (user.email || '').split('@')[0];
+        if (cordysUsername) {
+          await this.soapService.setCordysUserPassword(cordysUsername, newPassword);
+        }
+      } catch (cordysErr) {
+        console.warn('[UserMgmt] Cordys password update failed (non-blocking):', cordysErr);
+      }
+
+      this.closeResetPasswordModal();
+      this.showToastMessage(`Password for "${user.name}" has been reset successfully!`);
+    } catch (err: any) {
+      console.error('[UserMgmt] Failed to reset password:', err);
+      const errorDetail = err?.responseText || err?.jqXHR?.responseText || 'An error occurred.';
+      this.showToastMessage(`Failed to reset password: ${errorDetail}`, 'error');
+    } finally {
+      this.isResettingPassword = false;
+    }
   }
 
   resetAllPasswords() {

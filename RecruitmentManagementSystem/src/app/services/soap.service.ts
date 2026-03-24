@@ -105,38 +105,38 @@ export class SoapService {
     return this.call('GetAllDepartments', {}).then(xml => this.parseTuples(xml));
   }
 
-  insertDepartment(data: {
-    department_name: string;
-    created_by: string;
-  }): Promise<any> {
-    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-    if (this.useMockData) {
-      MOCK_DEPARTMENTS.push({
-        department_id: 'D' + String(MOCK_DEPARTMENTS.length + 1).padStart(2, '0'),
-        department_name: data.department_name,
-        manager_id: ''
-      });
-      return Promise.resolve({ success: true });
-    }
-    return this.call('UpdateMt_departments', {
-      tuple: {
-        'new': {
-          mt_departments: {
-            '@qAccess': '0',
-            '@qConstraint': '0',
-            '@qInit': '0',
-            '@qValues': '',
-            department_name: data.department_name,
-            created_at: now,
-            created_by: data.created_by,
-            updated_at: now,
-            updated_by: data.created_by,
-            temp1: '', temp2: '', temp3: '', temp4: '', temp5: ''
-          }
-        }
-      }
-    }, undefined,);
-  }
+  // insertDepartment(data: {
+  //   department_name: string;
+  //   created_by: string;
+  // }): Promise<any> {
+  //   const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  //   if (this.useMockData) {
+  //     MOCK_DEPARTMENTS.push({
+  //       department_id: 'D' + String(MOCK_DEPARTMENTS.length + 1).padStart(2, '0'),
+  //       department_name: data.department_name,
+  //       manager_id: ''
+  //     });
+  //     return Promise.resolve({ success: true });
+  //   }
+  //   return this.call('UpdateMt_departments', {
+  //     tuple: {
+  //       'new': {
+  //         mt_departments: {
+  //           '@qAccess': '0',
+  //           '@qConstraint': '0',
+  //           '@qInit': '0',
+  //           '@qValues': '',
+  //           department_name: data.department_name,
+  //           created_at: now,
+  //           created_by: data.created_by,
+  //           updated_at: now,
+  //           updated_by: data.created_by,
+  //           temp1: '', temp2: '', temp3: '', temp4: '', temp5: ''
+  //         }
+  //       }
+  //     }
+  //   }, undefined,);
+  // }
 
   // ═══════════════════════════════════════════════════════
   //  SKILLS
@@ -470,6 +470,32 @@ export class SoapService {
 </SOAP:Envelope>`;
 
     return this.call('RemoveRolesFromUser', {}, 'http://schemas.cordys.com/UserManagement/1.0/Organization', soapXml);
+  }
+
+  /**
+   * Set/reset a Cordys organization user's password.
+   * Uses the SetPassword SOAP method from UserManagement namespace.
+   */
+  setCordysUserPassword(userName: string, newPassword: string): Promise<any> {
+    if (this.useMockData) return Promise.resolve({ success: true });
+
+    const soapXml = `<SOAP:Envelope xmlns:SOAP="http://schemas.xmlsoap.org/soap/envelope/">
+  <SOAP:Body>
+    <SetPassword xmlns="http://schemas.cordys.com/UserManagement/1.0/Organization">
+      <User>
+        <UserName>${userName}</UserName>
+        <Credentials>
+          <UserIDPassword>
+            <UserID>${userName}</UserID>
+            <Password>${newPassword}</Password>
+          </UserIDPassword>
+        </Credentials>
+      </User>
+    </SetPassword>
+  </SOAP:Body>
+</SOAP:Envelope>`;
+
+    return this.call('SetPassword', {}, 'http://schemas.cordys.com/UserManagement/1.0/Organization', soapXml);
   }
 
   /**
@@ -2614,7 +2640,7 @@ ${wsXml}      <calendarName>${escapeXml(cal)}</calendarName>
     let dbStatus = 'PENDING';
     if (data.action === 'APPROVED') dbStatus = 'APPROVED';
     else if (data.action === 'REJECTED') dbStatus = 'REJECTED';
-    
+
     // Fallback to "system" if no user provided (to avoid FK violation)
     const reqBy = data.requested_by || 'system';
 
@@ -2654,5 +2680,39 @@ ${wsXml}      <calendarName>${escapeXml(cal)}</calendarName>
     const allRows = this.parseTuples(resp, 'ts_approvals');
     return allRows.filter(r => r['entity_id'] === requisitionId && r['entity_type'] === 'REQUISITION');
   }
+  insertDepartment(data: {
+    department_name: string;
+    created_by: string;
+    manager_id?: string;
+  }): Promise<any> {
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    if (this.useMockData) {
+      MOCK_DEPARTMENTS.push({
+        department_id: 'D' + String(MOCK_DEPARTMENTS.length + 1).padStart(2, '0'),
+        department_name: data.department_name,
+        manager_id: data.manager_id || ''
+      });
+      return Promise.resolve({ success: true });
+    }
+    return this.call('UpdateMt_departments', {
+      tuple: {
+        'new': {
+          mt_departments: {
+            '@qAccess': '0',
+            '@qConstraint': '0',
+            '@qInit': '0',
+            '@qValues': '',
+            department_name: data.department_name,
+            created_at: now,
+            created_by: data.created_by,
+            updated_at: now,
+            updated_by: data.created_by,
+            temp1: data.manager_id || '', temp2: '', temp3: '', temp4: '', temp5: ''
+          }
+        }
+      }
+    }, undefined,);
+  }
+
 }
 

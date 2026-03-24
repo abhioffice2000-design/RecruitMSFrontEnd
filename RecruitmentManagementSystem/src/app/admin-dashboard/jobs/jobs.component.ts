@@ -15,12 +15,29 @@ export class JobsComponent implements OnInit {
   departments: any[] = [];
   allApplications: any[] = [];
 
+  // Job Search State
+  searchTerm: string = '';
+
+  get filteredJobs(): any[] {
+    if (!this.searchTerm.trim()) return this.jobs;
+    const term = this.searchTerm.toLowerCase();
+    return this.jobs.filter(j =>
+      j.title.toLowerCase().includes(term) ||
+      j.dept.toLowerCase().includes(term) ||
+      String(j.id).toLowerCase().includes(term) ||
+      j.location.toLowerCase().includes(term)
+    );
+  }
+
   // Job Details State
   selectedJob: any = null;
-  selectedJobSkills: any[] = [];
   showDetailModal = false;
 
   constructor(private soapService: SoapService) { }
+
+  onSearch(event: any) {
+    this.searchTerm = event.target.value;
+  }
 
   ngOnInit() {
     this.loadData();
@@ -42,18 +59,22 @@ export class JobsComponent implements OnInit {
 
       this.jobs = jobsRaw.map((j: any) => {
         const apps = appsRaw.filter((a: any) => a.requisition_id === j.requisition_id);
+        const status = this.mapStatus(j.status);
+
         return {
           id: j.requisition_id,
           title: j.title,
           dept: deptMap.get(j.department_id) || 'N/A',
           location: j.temp1 || 'Headquarters', // Mapping location to temp1 or default
           type: j.temp2 || 'Full-time',       // Mapping type to temp2 or default
-          status: this.mapStatus(j.status),
+          status: status,
           applicants: apps.length,
           daysLeft: this.calculateDaysLeft(j.created_at),
           _raw: j
         };
       });
+
+
     } catch (err) {
       console.error('Failed to load jobs:', err);
     } finally {
@@ -86,21 +107,11 @@ export class JobsComponent implements OnInit {
   async viewDetails(job: any) {
     this.selectedJob = job;
     this.showDetailModal = true;
-    this.selectedJobSkills = [];
-    
-    try {
-      // Use the same service as HR to get job skills
-      const skills = await this.soapService.getJobSkillsByRequisition(job.id);
-      this.selectedJobSkills = skills || [];
-    } catch (err) {
-      console.error('Failed to load job skills:', err);
-    }
   }
 
   closeDetailModal() {
     this.showDetailModal = false;
     this.selectedJob = null;
-    this.selectedJobSkills = [];
   }
 
   formatDate(dateStr: string): string {
