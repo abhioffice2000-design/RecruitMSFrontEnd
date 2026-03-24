@@ -1,0 +1,164 @@
+<div class="login-page">
+  <div class="login-card">
+    <!-- Left: Form Panel -->
+    <div class="form-panel">
+      <div class="form-content">
+        <!-- Logo -->
+        <div class="logo-wrapper">
+          <img src="assets/images/adnatelogo.png" alt="Adnate IT Solutions Logo" class="brand-logo-img" />
+        </div>
+
+        <!-- Heading -->
+        <div class="form-header">
+          <h1>Welcome Back</h1>
+          <p>Sign in to your recruitment dashboard</p>
+        </div>
+
+        <form (ngSubmit)="cordysLogin()" class="login-form">
+          <!-- Error message -->
+          <div class="error-banner" *ngIf="errorUser || errorPass">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>{{ errorUser || errorPass }}</span>
+          </div>
+
+          <!-- Email -->
+          <div class="form-group">
+            <label for="email">Email</label>
+            <div class="input-wrapper">
+              <i class="fas fa-envelope input-icon"></i>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                [(ngModel)]="data.user"
+                placeholder="Enter your email"
+                autocomplete="email"
+                [disabled]="isLoading"
+                (focus)="clearErrors()"
+              />
+            </div>
+            <span class="field-error" *ngIf="errorUser">{{ errorUser }}</span>
+          </div>
+
+          <!-- Password -->
+          <div class="form-group">
+            <label for="password">Password</label>
+            <div class="input-wrapper">
+              <i class="fas fa-lock input-icon"></i>
+              <input
+                [type]="showPassword ? 'text' : 'password'"
+                id="password"
+                name="password"
+                [(ngModel)]="data.pass"
+                placeholder="Enter your password"
+                autocomplete="current-password"
+                [disabled]="isLoading"
+                (focus)="clearErrors()"
+              />
+              <button
+                type="button"
+                class="toggle-password"
+                (click)="togglePassword()"
+                tabindex="-1"
+              >
+                <i [class]="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+              </button>
+            </div>
+            <span class="field-error" *ngIf="errorPass">{{ errorPass }}</span>
+          </div>
+
+          <!-- Options row -->
+          <div class="form-options">
+            <a routerLink="/forgot-password" class="forgot-link">Forgot Password?</a>
+          </div>
+
+          <!-- Submit -->
+          <button
+            type="submit"
+            class="btn-login"
+            [disabled]="isLoading"
+            [class.loading]="isLoading"
+          >
+            <span *ngIf="!isLoading">Sign In</span>
+            <span *ngIf="isLoading" class="spinner-text">
+              <i class="fas fa-spinner fa-spin"></i> Signing in...
+            </span>
+          </button>
+        </form>
+
+        <!-- Footer -->
+        <div class="form-footer">
+          <p class="register-link">Don't have an account? <a routerLink="/register">Create Account</a></p>
+          <p>&copy; 2026 Adnate IT Solutions. All rights reserved.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Image Panel -->
+    <div class="image-panel">
+      <div class="image-wrapper">
+        <img src="assets/images/login-hero.png" alt="Team collaboration" class="hero-image" />
+        <div class="image-overlay"></div>
+
+        <!-- Floating cards -->
+        <div class="float-card card-schedule">
+          <div class="card-icon schedule-icon">
+            <i class="fas fa-calendar-check"></i>
+          </div>
+          <div class="card-info">
+            <strong>Interview Scheduled</strong>
+            <span>10:30 AM – 11:00 AM</span>
+          </div>
+        </div>
+
+        <div class="float-card card-calendar">
+          <div class="mini-calendar">
+            <div class="cal-header">
+              <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span>
+            </div>
+            <div class="cal-days">
+              <span>12</span><span>13</span><span class="active">14</span><span>15</span><span>16</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="float-card card-meeting">
+          <i class="fas fa-video meeting-icon"></i>
+          <div class="card-info">
+            <strong>Team Standup</strong>
+            <span>09:00 AM – 09:30 AM</span>
+          </div>
+          <div class="avatar-group">
+            <div class="avatar a1">S</div>
+            <div class="avatar a2">R</div>
+            <div class="avatar a3">M</div>
+          </div>
+        </div>
+
+        <div class="float-card card-candidates">
+          <div class="candidate-stat">
+            <i class="fas fa-user-plus"></i>
+            <div>
+              <strong>24</strong>
+              <span>New Applicants</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div
+    class="toast-notification"
+    *ngIf="showToastFlag"
+    [class.toast-success]="toastType === 'success'"
+    [class.toast-error]="toastType === 'error'"
+  >
+    <i [class]="toastType === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle'"></i>
+    <span>{{ toastMessage }}</span>
+    <button class="toast-close" (click)="hideToast()">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+</div>

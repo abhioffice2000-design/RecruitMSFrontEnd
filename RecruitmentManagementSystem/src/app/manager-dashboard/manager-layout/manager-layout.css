@@ -1,0 +1,38 @@
+/* Shell matches HR dashboard (see hr-dashboard.scss); local tweaks only */
+
+.manager-main {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.manager-top-bar {
+  flex-shrink: 0;
+  padding: 16px 28px 12px;
+  border-bottom: 1px solid var(--border-sidebar, var(--border-light, #e2e8f0));
+  background: var(--panel, var(--bg-surface, #fff));
+}
+
+.manager-outlet-wrap {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 20px 28px 28px;
+}
+
+/* Collapsed sidebar width (inner sidebar component handles nav) */
+.dashboard-layout.manager-sidebar-collapsed .sidebar {
+  width: 96px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+@media (max-width: 900px) {
+  .manager-top-bar {
+    padding: 12px 16px 10px;
+  }
+  .manager-outlet-wrap {
+    padding: 16px;
+  }
+}

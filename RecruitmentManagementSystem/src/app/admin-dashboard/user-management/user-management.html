@@ -1,0 +1,443 @@
+<div class="page-container animate-fade-in">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Organization Management</h1>
+      <p class="page-subtitle">Manage Managers, HR Personnel, Departments, and Interviewers.</p>
+    </div>
+  </div>
+
+  <!-- Stat Cards -->
+  <div class="stat-cards">
+    <div class="stat-card" [class.stat-active]="activeTab === 'managers'" (click)="switchTab('managers')">
+      <div class="stat-icon managers-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-count">{{ tabCounts.managers }}</span>
+        <span class="stat-label">Managers</span>
+      </div>
+    </div>
+
+    <div class="stat-card" [class.stat-active]="activeTab === 'hr'" (click)="switchTab('hr')">
+      <div class="stat-icon hr-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-count">{{ tabCounts.hr }}</span>
+        <span class="stat-label">HR Personnel</span>
+      </div>
+    </div>
+
+    <div class="stat-card" [class.stat-active]="activeTab === 'departments'" (click)="switchTab('departments')">
+      <div class="stat-icon dept-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-count">{{ tabCounts.departments }}</span>
+        <span class="stat-label">Departments</span>
+      </div>
+    </div>
+
+    <div class="stat-card" [class.stat-active]="activeTab === 'interviewers'" (click)="switchTab('interviewers')">
+      <div class="stat-icon int-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-count">{{ tabCounts.interviewers }}</span>
+        <span class="stat-label">Interviewers</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Content Card -->
+  <div class="card glass-panel main-content-card">
+    
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="tab-bar">
+        <button class="tab" [class.tab-active]="activeTab === 'managers'" (click)="switchTab('managers')">Managers</button>
+        <button class="tab" [class.tab-active]="activeTab === 'hr'" (click)="switchTab('hr')">HR</button>
+        <button class="tab" [class.tab-active]="activeTab === 'departments'" (click)="switchTab('departments')">Departments</button>
+        <button class="tab" [class.tab-active]="activeTab === 'interviewers'" (click)="switchTab('interviewers')">Interviewers</button>
+      </div>
+      
+      <div class="search-wrap">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="search-icon">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input type="text" [(ngModel)]="searchQuery" placeholder="Search by name, ID or email..." class="search-input" />
+      </div>
+
+      <button class="btn btn-primary btn-sm" (click)="openAddModal(activeTab === 'departments' ? 'department' : activeTab === 'hr' ? 'hr' : activeTab === 'interviewers' ? 'interviewer' : 'manager')">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px; height:14px; margin-right: 0.4rem">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        Add New
+      </button>
+    </div>
+
+    <!-- ===== MANAGERS TABLE ===== -->
+    <div class="table-container" *ngIf="activeTab === 'managers'">
+      <table class="enterprise-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Manager</th>
+            <th>Department</th>
+            <th class="status-col">Status</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let m of filteredManagers">
+            <td class="text-muted">{{ m.id }}</td>
+            <td>
+              <div class="person-info">
+                <div class="avatar">{{ m.name.charAt(0) }}</div>
+                <div>
+                  <strong>{{ m.name }}</strong>
+                  <div class="text-muted text-xs">{{ m.email }}</div>
+                </div>
+              </div>
+            </td>
+            <td>{{ m.department }}</td>
+            <td class="status-col">
+              <span class="badge" [class.badge-success]="m.status === 'ACTIVE'" [class.badge-danger]="m.status === 'INACTIVE'">{{ m.status }}</span>
+            </td>
+            <td class="actions-col">
+              <button class="action-btn" (click)="resetPassword(m)" title="Reset Password" style="color: #6366f1;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+              </button>
+              <button class="action-btn" (click)="openEditModal('manager', m)" title="Edit Manager" style="color: var(--primary-color);">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <button class="btn-delete-sm" (click)="deleteItem(managers, m)">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px; height:14px; margin-right: 4px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                Delete
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ===== HR TABLE ===== -->
+    <div class="table-container" *ngIf="activeTab === 'hr'">
+      <table class="enterprise-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>HR Member</th>
+            <th>Department</th>
+            <th class="status-col">Status</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let h of filteredHRMembers">
+            <td class="text-muted">{{ h.id }}</td>
+            <td>
+              <div class="person-info">
+                <div class="avatar avatar-hr">{{ h.name.charAt(0) }}</div>
+                <div>
+                  <strong>{{ h.name }}</strong>
+                  <div class="text-muted text-xs">{{ h.email }}</div>
+                </div>
+              </div>
+            </td>
+            <td>{{ h.department }}</td>
+            <td class="status-col">
+              <span class="badge" [class.badge-success]="h.status === 'ACTIVE'" [class.badge-danger]="h.status === 'INACTIVE'">{{ h.status }}</span>
+            </td>
+            <td class="actions-col">
+              <button class="action-btn" (click)="resetPassword(h)" title="Reset Password" style="color: #6366f1;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+              </button>
+              <button class="action-btn" (click)="openEditModal('hr', h)" title="Edit HR Member" style="color: var(--primary-color);">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <button class="btn-delete-sm" (click)="deleteItem(hrMembers, h)">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px; height:14px; margin-right: 4px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                Delete
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ===== DEPARTMENTS TABLE ===== -->
+    <div class="table-container" *ngIf="activeTab === 'departments'">
+      <table class="enterprise-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Department</th>
+            <th>Head</th>
+            <th class="status-col">Status</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let d of filteredDepartments">
+            <td class="text-muted">{{ d.id }}</td>
+            <td>
+              <div class="person-info">
+                <div class="avatar avatar-dept">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                </div>
+                <strong>{{ d.name }}</strong>
+              </div>
+            </td>
+            <td>{{ d.head }}</td>
+            <td class="status-col">
+              <span class="badge" [class.badge-success]="d.status === 'ACTIVE'" [class.badge-danger]="d.status === 'INACTIVE'">{{ d.status }}</span>
+            </td>
+            <td class="actions-col">
+              <button class="action-btn" (click)="openEditModal('department', d)" title="Edit Department" style="color: var(--primary-color);">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <button class="btn-delete-sm" (click)="deleteItem(departments, d)">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px; height:14px; margin-right: 4px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                Delete
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ===== INTERVIEWERS TABLE ===== -->
+    <div class="table-container" *ngIf="activeTab === 'interviewers'">
+      <table class="enterprise-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Interviewer</th>
+            <th>Department</th>
+            <th>Expertise</th>
+            <th class="status-col">Status</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let i of filteredInterviewers">
+            <td class="text-muted">{{ i.id }}</td>
+            <td>
+              <div class="person-info">
+                <div class="avatar avatar-int">{{ i.name.charAt(0) }}</div>
+                <div>
+                  <strong>{{ i.name }}</strong>
+                  <div class="text-muted text-xs">{{ i.email }}</div>
+                </div>
+              </div>
+            </td>
+            <td>{{ i.department }}</td>
+            <td><span class="badge badge-primary">{{ i.expertise }}</span></td>
+            <td class="status-col">
+              <span class="badge" [class.badge-success]="i.status === 'ACTIVE'" [class.badge-danger]="i.status === 'INACTIVE'">{{ i.status }}</span>
+            </td>
+            <td class="actions-col">
+              <button class="action-btn" (click)="resetPassword(i)" title="Reset Password" style="color: #6366f1;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+              </button>
+              <button class="action-btn" (click)="openEditModal('interviewer', i)" title="Edit Interviewer" style="color: var(--primary-color);">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <button class="btn-delete-sm" (click)="deleteItem(interviewers, i)">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px; height:14px; margin-right: 4px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                Delete
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== ADD NEW MODAL ===== -->
+<div class="modal-overlay" *ngIf="showAddModal" (click)="closeModal()">
+  <div class="modal-content animate-fade-in glass-panel" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <div class="modal-icon" [style.background]="isEditMode ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : ''">
+          <svg *ngIf="!isEditMode" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          <svg *ngIf="isEditMode" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+        </div>
+        <div>
+          <h2>{{ isEditMode ? 'Edit' : 'Add' }} {{ modalType === 'manager' ? 'Manager' : modalType === 'hr' ? 'HR Member' : modalType === 'department' ? 'Department' : 'Interviewer' }}</h2>
+          <p class="modal-subtitle">{{ isEditMode ? 'Update the details below.' : 'Fill in the details below.' }}</p>
+        </div>
+      </div>
+      <button class="btn-icon" (click)="closeModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    
+    <div class="modal-body">
+      <!-- Common fields for all user types (Manager, HR, Interviewer) -->
+      <ng-container *ngIf="modalType === 'manager' || modalType === 'hr' || modalType === 'interviewer'">
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Name <span class="req">*</span></label>
+            <input type="text" class="form-control" [(ngModel)]="newEntry.firstName" placeholder="Enter first name" />
+          </div>
+          <div class="form-group">
+            <label>Last Name <span class="req">*</span></label>
+            <input type="text" class="form-control" [(ngModel)]="newEntry.lastName" placeholder="Enter last name" />
+          </div>
+        </div>
+        <div class="form-row" *ngIf="isEditMode">
+          <div class="form-group">
+            <label>Role <span class="req">*</span></label>
+            <select class="form-control" [(ngModel)]="newEntry.role">
+              <option *ngFor="let role of roleOptions" [value]="role.value">{{ role.label }}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select class="form-control" [(ngModel)]="newEntry.status">
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="INACTIVE">INACTIVE</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group" *ngIf="!isEditMode">
+          <label>Email Address <span class="req">*</span></label>
+          <input type="email" class="form-control" [(ngModel)]="newEntry.email" placeholder="name@company.com" />
+        </div>
+
+        <ng-container *ngIf="isEditMode && roleOptions.length > 0 && !isEditMode"> <!-- Dummy condition to skip duplicate status field if moved -->
+        </ng-container>
+
+        <div class="form-row" *ngIf="!isEditMode">
+          <div class="form-group">
+            <label>Password <span class="req">*</span></label>
+            <input type="password" class="form-control" [(ngModel)]="newEntry.password" placeholder="Enter password" />
+          </div>
+          <div class="form-group">
+            <label>Confirm Password <span class="req">*</span></label>
+            <input type="password" class="form-control" [(ngModel)]="newEntry.confirmPassword" placeholder="Re-enter password" />
+          </div>
+        </div>
+        <p class="password-mismatch" *ngIf="!isEditMode && newEntry.password && newEntry.confirmPassword && newEntry.password !== newEntry.confirmPassword">
+          Passwords do not match
+        </p>
+      </ng-container>
+
+      <!-- Manager specific fields -->
+      <ng-container *ngIf="modalType === 'manager'">
+        <div class="form-group">
+          <label>Department <span class="req">*</span></label>
+          <select class="form-control" [(ngModel)]="newEntry.department">
+            <option value="" disabled selected>Select department...</option>
+            <option *ngFor="let d of dbDepartments" [value]="d['department_id']">{{ d['department_name'] }}</option>
+          </select>
+        </div>
+      </ng-container>
+
+
+      <!-- Department specific -->
+      <ng-container *ngIf="modalType === 'department'">
+        <div class="form-group">
+          <label>Department Name <span class="req">*</span></label>
+          <input type="text" class="form-control" [(ngModel)]="newEntry.name" placeholder="e.g. Engineering" />
+        </div>
+        <div class="form-group">
+          <label>Department Head</label>
+          <input type="text" class="form-control" [(ngModel)]="newEntry.head" placeholder="Head name" />
+        </div>
+      </ng-container>
+
+    </div>
+    
+    <div class="modal-footer">
+      <button class="btn outline-btn" (click)="closeModal()">Cancel</button>
+      <button class="btn btn-primary" (click)="saveEntry()" [disabled]="isSaving">
+        <svg *ngIf="!isSaving && !isEditMode" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px; height:14px; margin-right: 0.4rem">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        <svg *ngIf="!isSaving && isEditMode" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px; height:14px; margin-right: 0.4rem">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        <span *ngIf="isSaving" class="spinner" style="width:14px; height:14px; margin-right: 0.4rem; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; display: inline-block; animation: spin 0.6s linear infinite;"></span>
+        {{ isSaving ? (isEditMode ? 'Updating...' : 'Saving...') : (isEditMode ? 'Update' : 'Save') }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DELETE CONFIRMATION MODAL ===== -->
+<div class="modal-overlay" *ngIf="showConfirmModal" (click)="cancelDelete()">
+  <div class="modal-content animate-fade-in glass-panel confirm-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <div class="modal-icon delete-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="modal-title">Confirm Deletion</h2>
+          <p class="modal-subtitle">This action cannot be undone.</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="modal-body">
+      <div class="alert-box">
+        <p>Are you sure you want to delete <strong>{{ itemToDelete?.name }}</strong> from the database?</p>
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button class="btn outline-btn" (click)="cancelDelete()">Cancel</button>
+      <button class="btn btn-danger" (click)="confirmDelete()" [disabled]="isDeleting">
+        <span *ngIf="isDeleting" class="spinner-sm"></span>
+        {{ isDeleting ? 'Deleting...' : 'Delete User' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" *ngIf="showToast">
+  <div class="toast-content glass-panel animate-fade-in" [style.border-left-color]="toastType === 'error' ? '#ef4444' : '#10b981'">
+    <svg *ngIf="toastType === 'success'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="toast-icon" style="color: #10b981">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <svg *ngIf="toastType === 'error'" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="toast-icon" style="color: #ef4444">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <span>{{ toastMessage }}</span>
+  </div>
+</div>

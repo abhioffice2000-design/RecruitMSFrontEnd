@@ -1,0 +1,567 @@
+<div
+  class="dashboard-layout has-mobile-nav-inbar"
+  [class.interviewer-sidebar-collapsed]="sidebarCollapsed"
+  [class.mobile-nav-open]="mobileNavOpen"
+>
+  <div
+    class="mobile-nav-backdrop"
+    *ngIf="mobileNavOpen"
+    (click)="mobileNavOpen = false"
+    aria-hidden="true"
+  ></div>
+
+  <aside class="sidebar">
+    <div class="logo">
+      <img src="assets/images/adnatelogo.png" alt="Adnate IT Solutions" class="logo-img" />
+    </div>
+
+    <nav class="nav-menu">
+      <ng-container *ngFor="let item of navItems">
+        <button
+          type="button"
+          *ngIf="item.id !== 'notifications' && item.id !== 'delegation'"
+          class="nav-item"
+          [class.active]="activeView === item.id"
+          (click)="setView(item.id)"
+          [attr.title]="sidebarCollapsed ? item.label : null"
+        >
+          <span class="icon"><i [class]="item.icon"></i></span>
+          <span *ngIf="!sidebarCollapsed">{{ item.label }}</span>
+          <span
+            *ngIf="!sidebarCollapsed && item.id === 'notifications' && unreadNotifications > 0"
+            class="iv-nav-badge"
+          >{{ unreadNotifications }}</span>
+        </button>
+      </ng-container>
+    </nav>
+
+    <div class="sidebar-logout">
+      <div class="app-sidebar-actions app-sidebar-actions--padded">
+        <app-theme-toggle [compact]="sidebarCollapsed"></app-theme-toggle>
+        <button type="button" class="sidebar-collapse-btn" (click)="toggleSidebar()" [title]="sidebarCollapsed ? 'Expand menu' : 'Collapse menu'">
+          <i [class]="sidebarCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'"></i>
+          <span *ngIf="!sidebarCollapsed">Collapse</span>
+        </button>
+        <button type="button" class="app-btn-logout" (click)="logout()" title="Logout">
+          <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+          <span *ngIf="!sidebarCollapsed">Logout</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content interviewer-main">
+    <div class="interviewer-top-bar">
+      <button
+        type="button"
+        class="mobile-menu-btn mobile-menu-btn--inbar"
+        (click)="mobileNavOpen = !mobileNavOpen"
+        aria-label="Open navigation menu"
+      >
+        <i class="fas fa-bars" aria-hidden="true"></i>
+      </button>
+      <app-header></app-header>
+    </div>
+
+    <div class="interviewer-outlet-wrap">
+    <header class="iv-page-head">
+      <div class="iv-page-head-text">
+        <h1 class="iv-page-title">
+          {{ activeView === 'dashboard' ? 'Dashboard' :
+             activeView === 'interviews' ? 'My Interviews' :
+             activeView === 'availability' ? 'Availability' :
+             activeView === 'notifications' ? 'Notifications' :
+             'Delegation' }}
+        </h1>
+        <p class="iv-page-subtitle">
+          {{ activeView === 'dashboard' ? 'Welcome back, here\'s your overview' :
+             activeView === 'interviews' ? 'Manage your assigned interviews' :
+             activeView === 'availability' ? 'Manage your interview time slots' :
+             activeView === 'notifications' ? 'Stay updated with the latest activity' :
+             'Delegate responsibilities while you\'re away' }}
+        </p>
+      </div>
+      <span class="iv-today-date">
+        <i class="fas fa-calendar-day"></i>
+        {{ todayLabel }}
+      </span>
+    </header>
+
+
+    <!-- ╔══════════════════════════════════════════════╗ -->
+    <!-- ║             DASHBOARD VIEW                   ║ -->
+    <!-- ╚══════════════════════════════════════════════╝ -->
+    <section class="view-content" *ngIf="activeView === 'dashboard'">
+
+      <!-- Stat Cards -->
+      <div class="stats-grid">
+        <div class="stat-card stat-blue">
+          <div class="stat-icon"><i class="fas fa-clock"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.upcoming }}</span>
+            <span class="stat-label">Upcoming Interviews</span>
+          </div>
+        </div>
+        <div class="stat-card stat-green">
+          <div class="stat-icon"><i class="fas fa-check-double"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.completed }}</span>
+            <span class="stat-label">Completed</span>
+          </div>
+        </div>
+        <div class="stat-card stat-amber">
+          <div class="stat-icon"><i class="fas fa-pen-to-square"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.pendingFeedback }}</span>
+            <span class="stat-label">Pending Feedback</span>
+          </div>
+        </div>
+        <div class="stat-card stat-purple">
+          <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.slotsThisWeek }}</span>
+            <span class="stat-label">Available Slots</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Two Columns -->
+      <div class="dashboard-grid">
+
+        <!-- Upcoming Interviews -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-video"></i> Upcoming Interviews</h3>
+            <button class="link-btn" (click)="setView('interviews')">View All <i class="fas fa-arrow-right"></i></button>
+          </div>
+          <div class="card-body">
+            <div class="interview-mini" *ngFor="let iv of upcomingInterviews; let i = index" [style.animation-delay]="i * 0.08 + 's'">
+              <div class="iv-avatar" [style.background]="'hsl(' + (i * 60 + 200) + ', 60%, 55%)'">
+                {{ getInitials(iv.application_id) }}
+              </div>
+              <div class="iv-info">
+                <strong>App: {{ iv.application_id }}</strong>
+                <span>{{ iv.interview_type }} · Round {{ iv.round_number }}</span>
+              </div>
+              <div class="iv-time">
+                <span class="iv-date" *ngIf="iv.slot_date">{{ formatDate(iv.slot_date) }}</span>
+                <span class="iv-slot" *ngIf="iv.start_time">{{ formatTime(iv.start_time) }}</span>
+              </div>
+              <a *ngIf="iv.status === 'SCHEDULED' && iv.meeting_link"
+                 class="btn-join-meet-mini"
+                 [href]="iv.meeting_link"
+                 target="_blank"
+                 rel="noopener noreferrer"
+                 title="Join meeting"
+                 (click)="$event.stopPropagation()">
+                <i class="fas fa-video"></i>
+              </a>
+            </div>
+            <div class="empty-state" *ngIf="upcomingInterviews.length === 0">
+              <i class="fas fa-calendar-xmark"></i>
+              <p>No upcoming interviews</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card">
+          <div class="card-header">
+            <h3><i class="fas fa-history"></i> Recent Activity</h3>
+          </div>
+          <div class="card-body">
+            <div class="activity-item" *ngFor="let act of recentActivity; let i = index" [style.animation-delay]="i * 0.08 + 's'">
+              <div class="act-icon" [style.color]="act.color">
+                <i [class]="act.icon"></i>
+              </div>
+              <div class="act-info">
+                <span class="act-text">{{ act.text }}</span>
+                <span class="act-time">{{ act.time }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ╔══════════════════════════════════════════════╗ -->
+    <!-- ║           MY INTERVIEWS VIEW                 ║ -->
+    <!-- ╚══════════════════════════════════════════════╝ -->
+    <section class="view-content" *ngIf="activeView === 'interviews'">
+
+      <!-- Filters -->
+      <div class="filter-bar">
+        <button
+          *ngFor="let f of ['ALL','SCHEDULED','COMPLETED','CANCELLED']"
+          class="filter-chip"
+          [class.active]="interviewFilter === f"
+          (click)="setInterviewFilter($any(f))"
+        >
+          {{ f === 'ALL' ? 'All' : (f | titlecase) }}
+        </button>
+      </div>
+
+      <!-- Interview Cards -->
+      <div class="interviews-grid">
+        <div
+          class="interview-card"
+          *ngFor="let iv of filteredInterviews; let i = index"
+          [style.animation-delay]="i * 0.06 + 's'"
+        >
+          <div class="iv-card-header">
+            <div class="iv-card-avatar" [style.background]="'hsl(' + (i * 45 + 180) + ', 55%, 52%)'">
+              {{ getInitials(iv.application_id) }}
+            </div>
+            <div>
+              <h4>App: {{ iv.application_id }}</h4>
+              <span class="iv-email">ID: {{ iv.interview_id }}</span>
+            </div>
+            <span class="status-badge" [ngClass]="getStatusClass(iv.status)">
+              {{ iv.status }}
+            </span>
+          </div>
+
+          <div class="iv-card-details">
+            <div class="detail-row">
+              <i class="fas fa-briefcase"></i>
+              <span>Application ID: {{ iv.application_id }}</span>
+            </div>
+            <div class="detail-row">
+              <i class="fas fa-layer-group"></i>
+              <span>{{ iv.interview_type }} · Round {{ iv.round_number }}</span>
+            </div>
+            <div class="detail-row" *ngIf="iv.slot_date && iv.start_time && iv.end_time">
+              <i class="fas fa-clock"></i>
+              <span>{{ formatDate(iv.slot_date) }}, {{ formatTime(iv.start_time) }} – {{ formatTime(iv.end_time) }}</span>
+            </div>
+          </div>
+
+          <div class="iv-card-actions">
+            <a
+              class="btn btn-join-meet btn-sm"
+              *ngIf="iv.status === 'SCHEDULED' && iv.meeting_link"
+              [href]="iv.meeting_link"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <i class="fas fa-video"></i> Join meeting
+            </a>
+            <span class="meet-link-missing" *ngIf="iv.status === 'SCHEDULED' && !iv.meeting_link">
+              <i class="fas fa-link-slash"></i> No meeting link yet
+            </span>
+            <button
+              class="btn btn-outline-success btn-sm"
+              *ngIf="iv.status === 'SCHEDULED' && !iv.feedbackSubmitted"
+              (click)="markInterviewCompleted(iv)"
+              title="Mark interview as completed (then submit feedback)"
+            >
+              <i class="fas fa-check-circle"></i> Mark Complete
+            </button>
+            <button
+              class="btn btn-outline btn-sm"
+              *ngIf="iv.status === 'COMPLETED' && !iv.feedbackSubmitted"
+              (click)="openFeedback(iv)"
+            >
+              <i class="fas fa-pen"></i> Feedback
+            </button>
+            <span class="feedback-done-badge" *ngIf="iv.feedbackSubmitted">
+              <i class="fas fa-check-double"></i> Feedback submitted
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="filteredInterviews.length === 0">
+        <i class="fas fa-search"></i>
+        <p>No interviews match your filter</p>
+      </div>
+    </section>
+
+
+    <!-- ╔══════════════════════════════════════════════╗ -->
+    <!-- ║          AVAILABILITY VIEW                   ║ -->
+    <!-- ╚══════════════════════════════════════════════╝ -->
+    <section class="view-content" *ngIf="activeView === 'availability'">
+
+      <div class="section-toolbar">
+        <button class="btn btn-primary" (click)="toggleSlotForm()">
+          <i [class]="showSlotForm ? 'fas fa-times' : 'fas fa-plus'"></i>
+          {{ showSlotForm ? 'Cancel' : 'Add Slot' }}
+        </button>
+      </div>
+
+      <!-- Add Slot Form -->
+      <div class="card slot-form-card" *ngIf="showSlotForm">
+        <div class="card-header"><h3><i class="fas fa-plus-circle"></i> New Availability Slot</h3></div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" [(ngModel)]="newSlot.date" class="form-input" [min]="minSlotDate" />
+            </div>
+            <div class="form-group">
+              <label>Start Time</label>
+              <select [(ngModel)]="newSlot.startTime" (ngModelChange)="onStartTimeChange()" class="form-input">
+                <option *ngFor="let t of startTimeOptions" [value]="t">{{ t }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>End Time</label>
+              <input type="time" [value]="newSlot.endTime" disabled class="form-input" />
+            </div>
+            <div class="form-group form-action">
+              <button class="btn btn-primary" (click)="addSlot()">
+                <i class="fas fa-check"></i> Save Slot
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Slots Table -->
+      <div class="card">
+        <div class="card-header">
+          <h3><i class="fas fa-calendar-alt"></i> Your Availability Slots</h3>
+        </div>
+        <div class="card-body table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Slot ID</th>
+                <th>Date</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let slot of slots; let i = index" [style.animation-delay]="i * 0.05 + 's'">
+                <td class="cell-id">{{ slot.slot_id }}</td>
+                <td>{{ formatDate(slot.slot_date) }}</td>
+                <td>{{ formatTime(slot.start_time) }}</td>
+                <td>{{ formatTime(slot.end_time) }}</td>
+                <td>
+                  <span class="slot-status" [class.booked]="isSlotBooked(slot)" [class.available]="!isSlotBooked(slot)">
+                    {{ isSlotBooked(slot) ? 'Booked' : 'Available' }}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    class="btn btn-danger btn-sm"
+                    [disabled]="isSlotBooked(slot)"
+                    (click)="removeSlot(slot.slot_id)"
+                    title="Remove slot"
+                  >
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="empty-state" *ngIf="slots.length === 0">
+            <i class="fas fa-calendar-plus"></i>
+            <p>No slots added yet. Click "Add Slot" to get started.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ╔══════════════════════════════════════════════╗ -->
+    <!-- ║         NOTIFICATIONS VIEW                   ║ -->
+    <!-- ╚══════════════════════════════════════════════╝ -->
+    <section class="view-content" *ngIf="activeView === 'notifications'">
+      <div class="notifications-list">
+        <div
+          class="notification-item"
+          *ngFor="let n of notifications; let i = index"
+          [class.unread]="n.status === 'UNSENT'"
+          [style.animation-delay]="i * 0.06 + 's'"
+        >
+          <div class="notif-icon">
+            <i [class]="n.entity_type === 'INTERVIEW' ? 'fas fa-video' : 'fas fa-bell'"></i>
+          </div>
+          <div class="notif-body">
+            <h4>{{ n.title }}</h4>
+            <p>{{ n.message }}</p>
+            <span class="notif-time">{{ formatDateTime(n.sent_at) }}</span>
+          </div>
+          <span class="notif-dot" *ngIf="n.status === 'UNSENT'"></span>
+        </div>
+      </div>
+      <div class="empty-state" *ngIf="notifications.length === 0">
+        <i class="fas fa-bell-slash"></i>
+        <p>No notifications yet</p>
+      </div>
+    </section>
+
+
+    <!-- ╔══════════════════════════════════════════════╗ -->
+    <!-- ║          DELEGATION VIEW                     ║ -->
+    <!-- ╚══════════════════════════════════════════════╝ -->
+    <section class="view-content" *ngIf="activeView === 'delegation'">
+
+      <div class="section-toolbar">
+        <button class="btn btn-primary" (click)="toggleDelegationForm()">
+          <i [class]="showDelegationForm ? 'fas fa-times' : 'fas fa-plus'"></i>
+          {{ showDelegationForm ? 'Cancel' : 'New Delegation' }}
+        </button>
+      </div>
+
+      <!-- Delegation Form -->
+      <div class="card" *ngIf="showDelegationForm">
+        <div class="card-header"><h3><i class="fas fa-user-plus"></i> Create Delegation</h3></div>
+        <div class="card-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Delegate User ID</label>
+              <input type="text" [(ngModel)]="newDelegation.delegateUserId" class="form-input" placeholder="USR-000001" />
+            </div>
+            <div class="form-group">
+              <label>Start Date</label>
+              <input type="date" [(ngModel)]="newDelegation.startDate" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label>End Date</label>
+              <input type="date" [(ngModel)]="newDelegation.endDate" class="form-input" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group full-width">
+              <label>Reason</label>
+              <textarea [(ngModel)]="newDelegation.reason" class="form-input form-textarea" rows="2" placeholder="e.g. Out of office, conference, vacation..."></textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="btn btn-primary" (click)="addDelegation()">
+              <i class="fas fa-check"></i> Create Delegation
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delegation Cards -->
+      <div class="delegation-grid">
+        <div
+          class="delegation-card"
+          *ngFor="let d of delegations; let i = index"
+          [class.revoked]="d.status === 'REVOKED'"
+          [style.animation-delay]="i * 0.08 + 's'"
+        >
+          <div class="del-header">
+            <div class="del-avatar">{{ d.delegate_user_id.substring(0,2) }}</div>
+            <div>
+              <h4>{{ d.delegate_user_id }}</h4>
+              <span class="del-email">Delegated</span>
+            </div>
+            <span class="del-status" [class.active]="d.status === 'ACTIVE'" [class.revoked]="d.status === 'REVOKED'">
+              {{ d.status }}
+            </span>
+          </div>
+          <div class="del-details">
+            <div class="detail-row">
+              <i class="fas fa-calendar"></i>
+              <span>{{ formatDate(d.start_date) }} → {{ formatDate(d.end_date) }}</span>
+            </div>
+            <div class="detail-row" *ngIf="d.reason">
+              <i class="fas fa-comment-dots"></i>
+              <span>{{ d.reason }}</span>
+            </div>
+          </div>
+          <div class="del-actions" *ngIf="d.status === 'ACTIVE'">
+            <button class="btn btn-danger btn-sm" (click)="revokeDelegation(d)">
+              <i class="fas fa-ban"></i> Revoke
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="empty-state" *ngIf="delegations.length === 0">
+        <i class="fas fa-user-slash"></i>
+        <p>No delegations created</p>
+      </div>
+    </section>
+
+    </div>
+  </main>
+</div>
+
+
+<!-- ═══ FEEDBACK MODAL ═══ -->
+<div class="modal-overlay" *ngIf="showFeedbackModal" (click)="closeFeedbackModal()">
+  <div class="modal-card" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3><i class="fas fa-pen-to-square"></i> Submit Feedback</h3>
+      <button class="modal-close" (click)="closeFeedbackModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="feedback-candidate">
+        <div class="fb-avatar">FB</div>
+        <div>
+          <strong>{{ feedbackForm.interview_id }}</strong>
+          <span>{{ feedbackInterview?.interview_type }}</span>
+        </div>
+      </div>
+
+      <!-- Star Rating -->
+      <div class="form-group">
+        <label>Rating (0–10)</label>
+        <div class="star-rating">
+          <button
+            *ngFor="let s of [1,2,3,4,5,6,7,8,9,10]"
+            class="star-btn"
+            [class.filled]="s <= feedbackForm.rating"
+            [class.hovered]="s <= hoveredStar && s > feedbackForm.rating"
+            (mouseenter)="hoveredStar = s"
+            (mouseleave)="hoveredStar = 0"
+            (click)="setRating(s)"
+          >
+            <i [class]="s <= feedbackForm.rating ? 'fas fa-star' : (s <= hoveredStar ? 'fas fa-star' : 'far fa-star')"></i>
+          </button>
+          <span class="rating-value">{{ feedbackForm.rating }}/10</span>
+        </div>
+      </div>
+
+      <!-- Recommendation -->
+      <div class="form-group">
+        <label>Recommendation</label>
+        <div class="rec-chips">
+          <button
+            *ngFor="let r of ['Strong Hire','Hire','No Hire','Strong No Hire']"
+            class="rec-chip"
+            [class.active]="feedbackForm.recommendation === r"
+            (click)="feedbackForm.recommendation = r"
+          >
+            {{ r }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Comments -->
+      <div class="form-group">
+        <label>Comments</label>
+        <textarea [(ngModel)]="feedbackForm.comments" class="form-input form-textarea" rows="4" placeholder="Share your detailed feedback about the candidate..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeFeedbackModal()">Cancel</button>
+      <button class="btn btn-primary" (click)="submitFeedback()">
+        <i class="fas fa-paper-plane"></i> Submit Feedback
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ TOAST ═══ -->
+<div
+  class="toast-notification"
+  *ngIf="showToastFlag"
+  [class.toast-success]="toastType === 'success'"
+  [class.toast-error]="toastType === 'error'"
+>
+  <i [class]="toastType === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle'"></i>
+  <span>{{ toastMessage }}</span>
+</div>

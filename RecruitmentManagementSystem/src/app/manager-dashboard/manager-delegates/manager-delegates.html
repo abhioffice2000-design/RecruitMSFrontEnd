@@ -1,0 +1,99 @@
+<div class="page-wrap animate-fade-in">
+  <div class="page-header">
+    <div>
+      <h1><i class="fas fa-user-friends"></i> Manage Delegates</h1>
+      <p>Select users who can approve or reject tasks on your behalf</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-primary" (click)="saveDelegates()" [disabled]="isSaving">
+        <i class="fas" [ngClass]="isSaving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+        {{ isSaving ? 'Saving...' : 'Save Changes' }}
+      </button>
+    </div>
+  </div>
+
+  <div class="content-grid">
+    <!-- Active Delegates Panel -->
+    <div class="panel glass-panel">
+      <div class="panel-header">
+        <h3><i class="fas fa-check-circle text-green"></i> Active Delegates ({{ activeDelegates.length }})</h3>
+        <p class="panel-desc">These users currently have delegation access.</p>
+      </div>
+      <div class="panel-body">
+        <div class="empty-state" *ngIf="activeDelegates.length === 0">
+          <i class="fas fa-user-minus"></i>
+          <p>No delegates selected</p>
+        </div>
+        <div class="delegate-list" *ngIf="activeDelegates.length > 0">
+          <div class="delegate-card" *ngFor="let u of activeDelegates">
+            <div class="user-avatar">{{ u.name.charAt(0) }}</div>
+            <div class="user-info">
+              <h4>{{ u.name }}</h4>
+              <span>{{ u.email || 'No email' }}</span>
+            </div>
+            <button class="btn-remove" (click)="removeDelegate(u)" title="Remove Delegate">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Available Users Panel -->
+    <div class="panel glass-panel">
+      <div class="panel-header">
+        <h3><i class="fas fa-search text-blue"></i> Add Delegates</h3>
+        <div class="search-box">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" [(ngModel)]="searchQuery" placeholder="Search by name or email...">
+        </div>
+      </div>
+      <div class="panel-body p-0">
+        <div class="loading-state" *ngIf="isLoading">
+          <div class="spinner"></div>
+          <p>Loading users...</p>
+        </div>
+        <div class="users-table-wrap" *ngIf="!isLoading">
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th class="td-action">Delegate</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let u of filteredUsers" [class.is-selected]="u.is_delegate">
+                <td>
+                  <div class="td-user">
+                    <div class="user-avatar-sm">{{ u.name.charAt(0) }}</div>
+                    <div class="user-info-sm">
+                      <span class="user-name">{{ u.name }}</span>
+                      <span class="user-email" *ngIf="u.email">{{ u.email }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="td-action">
+                  <button class="btn-toggle" [class.active]="u.is_delegate" (click)="toggleDelegate(u)">
+                    <i class="fas" [ngClass]="u.is_delegate ? 'fa-check' : 'fa-plus'"></i>
+                    {{ u.is_delegate ? 'Added' : 'Add' }}
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="filteredUsers.length === 0">
+                <td colspan="2" class="empty-cell">No users found matching "{{ searchQuery }}"</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-notification" *ngIf="showToastFlag"
+       [class.toast-success]="toastType === 'success'"
+       [class.toast-error]="toastType === 'error'">
+    <i class="fas" [ngClass]="toastType === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
+    {{ toastMessage }}
+  </div>
+
+</div>

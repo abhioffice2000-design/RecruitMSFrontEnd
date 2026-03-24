@@ -1,0 +1,343 @@
+<div class="page-wrap animate-fade-in">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1><i class="fas fa-tachometer-alt"></i> Manager Dashboard</h1>
+      <p>Review and manage job requisition approvals</p>
+    </div>
+  </div>
+
+  <!-- Stats + Chart Row -->
+  <div class="top-row">
+    <!-- Stats Cards -->
+    <div class="stats-cards">
+      <div class="stat-card">
+        <div class="stat-icon-wrap bg-amber"><i class="fas fa-clock"></i></div>
+        <div><div class="stat-val">{{ stats.pending }}</div><div class="stat-label">Pending</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrap bg-green"><i class="fas fa-check-circle"></i></div>
+        <div><div class="stat-val">{{ stats.approved }}</div><div class="stat-label">Approved</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrap bg-red"><i class="fas fa-times-circle"></i></div>
+        <div><div class="stat-val">{{ stats.rejected }}</div><div class="stat-label">Rejected</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon-wrap bg-purple"><i class="fas fa-share-alt"></i></div>
+        <div><div class="stat-val">{{ stats.delegated }}</div><div class="stat-label">Delegated</div></div>
+      </div>
+    </div>
+
+    <!-- Donut Chart -->
+    <div class="chart-card">
+      <h3 class="chart-title"><i class="fas fa-chart-pie"></i> Approval Overview</h3>
+      <div class="chart-body">
+        <div class="donut-wrap">
+          <svg viewBox="0 0 100 100" class="donut-svg">
+            <circle cx="50" cy="50" r="45" fill="none" stroke="#f1f5f9" stroke-width="8" />
+            <circle *ngFor="let seg of chartSegments; let i = index"
+                    cx="50" cy="50" r="45" fill="none"
+                    [attr.stroke]="seg.color" stroke-width="8"
+                    [attr.stroke-dasharray]="getChartDasharray(seg)"
+                    [attr.stroke-dashoffset]="getChartOffset(i)"
+                    stroke-linecap="round" />
+          </svg>
+          <div class="donut-center">
+            <span class="donut-total">{{ stats.total }}</span>
+            <span class="donut-text">Total</span>
+          </div>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item" *ngFor="let seg of chartSegments">
+            <span class="legend-dot" [style.background]="seg.color"></span>
+            <span class="legend-label">{{ seg.label }}</span>
+            <span class="legend-count">{{ seg.count }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <div class="filter-tabs">
+      <button [class.active]="filterStatus === 'PENDING'" (click)="filterStatus = 'PENDING'">
+        <i class="fas fa-clock"></i> Pending <span class="tab-count" *ngIf="stats.pending > 0">{{ stats.pending }}</span>
+      </button>
+      <button [class.active]="filterStatus === 'DELEGATED_OUT'" (click)="filterStatus = 'DELEGATED_OUT'" class="tab-delegated-out" title="Requisitions you delegated to another manager">
+        <i class="fas fa-people-arrows"></i> Delegated out
+        <span class="tab-count" *ngIf="stats.delegatedOut > 0">{{ stats.delegatedOut }}</span>
+      </button>
+      <button [class.active]="filterStatus === 'APPROVED'" (click)="filterStatus = 'APPROVED'">
+        <i class="fas fa-check-circle"></i> Approved
+      </button>
+      <button [class.active]="filterStatus === 'REJECTED'" (click)="filterStatus = 'REJECTED'">
+        <i class="fas fa-times-circle"></i> Rejected
+      </button>
+      <button [class.active]="filterStatus === 'ALL'" (click)="filterStatus = 'ALL'">
+        <i class="fas fa-list-ul"></i> All
+      </button>
+      <button [class.active]="filterStatus === 'DELEGATIONS'" (click)="filterStatus = 'DELEGATIONS'" class="tab-delegations">
+        <i class="fas fa-user-friends"></i> My Delegations <span class="tab-count" *ngIf="activeDelegations.length > 0">{{ activeDelegations.length }}</span>
+      </button>
+    </div>
+    <div class="results-count" *ngIf="filterStatus !== 'DELEGATIONS'">
+      <i class="fas fa-file-alt"></i> {{ filteredApprovals.length }} requisitions
+      <span class="results-hint" *ngIf="filterStatus === 'DELEGATED_OUT'"> — awaiting your delegate’s decision in BPM</span>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-state" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <p>Loading your dashboard...</p>
+  </div>
+
+  <div *ngIf="!isLoading">
+
+    <!-- Delegations Management View -->
+    <div class="delegations-view" *ngIf="filterStatus === 'DELEGATIONS'">
+      <div class="empty-state" *ngIf="activeDelegations.length === 0">
+        <i class="fas fa-user-friends empty-icon"></i>
+        <h3>No Active Delegations</h3>
+        <p>You haven't delegated any tasks to other managers.</p>
+      </div>
+
+      <div class="delegation-list" *ngIf="activeDelegations.length > 0">
+        <div class="delegation-card" *ngFor="let del of activeDelegations">
+          <div class="del-card-left">
+            <div class="user-avatar-sm">{{ del.delegate_name ? del.delegate_name.charAt(0) : '?' }}</div>
+            <div class="del-user-info">
+              <span class="del-name">{{ del.delegate_name }}</span>
+              <span class="user-role-badge" *ngIf="del.delegate_role">{{ del.delegate_role }}</span>
+            </div>
+          </div>
+          <div class="del-card-middle">
+            <div class="del-date-wrap">
+              <i class="fas fa-calendar-alt"></i>
+              <span>{{ del.start_date | date:'MMM d, y' }} – {{ del.end_date | date:'MMM d, y' }}</span>
+            </div>
+            <div class="del-reason" *ngIf="del.reason">
+              <i class="fas fa-comment-dots"></i> {{ del.reason }}
+            </div>
+          </div>
+          <div class="del-card-right">
+            <button class="btn-revoke" (click)="revokeDelegation(del)">
+              <i class="fas fa-user-minus"></i> Revoke
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State for Approvals -->
+    <div class="empty-state" *ngIf="filterStatus !== 'DELEGATIONS' && filteredApprovals.length === 0">
+      <i class="fas fa-clipboard-check empty-icon"></i>
+      <h3 *ngIf="filterStatus !== 'DELEGATED_OUT'">No {{ filterStatus === 'ALL' ? '' : filterStatus.toLowerCase() }} requisitions</h3>
+      <h3 *ngIf="filterStatus === 'DELEGATED_OUT'">No delegated requisitions</h3>
+      <p *ngIf="filterStatus !== 'DELEGATED_OUT'">All caught up! No items to display.</p>
+      <p *ngIf="filterStatus === 'DELEGATED_OUT'">When you delegate a pending approval, it appears here until it is approved or rejected.</p>
+    </div>
+
+    <!-- Approval Cards -->
+    <div class="approval-list" *ngIf="filterStatus !== 'DELEGATIONS' && filteredApprovals.length > 0">
+      <div class="approval-card" *ngFor="let req of filteredApprovals"
+           [class.expanded]="isExpanded(req)">
+
+        <!-- Card Header — Always Visible -->
+        <div class="card-header" (click)="toggleExpand(req)">
+          <div class="card-left">
+            <div class="job-avatar">{{ req.job_title.charAt(0) }}</div>
+            <div class="card-info">
+              <span class="req-id-badge">{{ req.entity_id }}</span>
+              <h4>{{ req.job_title }}</h4>
+              <div class="req-meta">
+                <span *ngIf="req.department_name"><i class="fas fa-building"></i> {{ req.department_name }}</span>
+                <span><i class="fas fa-user"></i> {{ req.requester_name }}</span>
+                <span><i class="fas fa-calendar-alt"></i> {{ formatDate(req.requested_at) }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-right">
+            <span class="status-pill"
+                  [class.pill-pending]="req.status === 'PENDING'"
+                  [class.pill-approved]="req.status === 'APPROVED'"
+                  [class.pill-rejected]="req.status === 'REJECTED'">
+              <i class="fas" [ngClass]="{
+                'fa-clock': req.status === 'PENDING',
+                'fa-check-circle': req.status === 'APPROVED',
+                'fa-times-circle': req.status === 'REJECTED'
+              }"></i> {{ req.status }}
+            </span>
+
+            <span class="pill-delegated-out" *ngIf="req.isDelegatedOutTask">
+              <i class="fas fa-people-arrows"></i> Delegated out
+            </span>
+
+            <!-- Quick Action Buttons (only for PENDING, not delegated-out) -->
+            <div class="quick-actions" *ngIf="req.status === 'PENDING' && !req.isDelegatedOutTask">
+              <button class="btn-quick btn-q-approve" (click)="openApproveModal(req, $event)" title="Approve">
+                <i class="fas fa-check"></i>
+              </button>
+              <button class="btn-quick btn-q-reject" (click)="openRejectModal(req, $event)" title="Reject">
+                <i class="fas fa-times"></i>
+              </button>
+              <button class="btn-quick btn-q-delegate" (click)="openDelegateModal(req, $event)" title="Delegate"
+                      [class.disabled-btn]="req.is_delegated">
+                <i class="fas fa-share-alt"></i>
+              </button>
+            </div>
+
+            <i class="fas fa-chevron-down expand-icon" [class.rotated]="isExpanded(req)"></i>
+          </div>
+        </div>
+
+        <!-- Delegated Badge -->
+        <div class="delegated-bar" *ngIf="req.delegated_to.length > 0">
+          <i class="fas fa-share-alt"></i> Delegated to: <strong>{{ getDelegateNames(req) }}</strong>
+        </div>
+
+      <!-- Expanded Details -->
+      <div class="card-body" *ngIf="isExpanded(req)">
+        <div class="detail-grid">
+          <div class="detail-item" *ngIf="req.experience_range">
+            <span class="detail-label"><i class="fas fa-chart-bar"></i> Experience</span>
+            <span class="detail-value">{{ req.experience_range }}</span>
+          </div>
+          <div class="detail-item" *ngIf="req.salary_range">
+            <span class="detail-label"><i class="fas fa-rupee-sign"></i> Salary Range</span>
+            <span class="detail-value">{{ req.salary_range }}</span>
+          </div>
+          <div class="detail-item" *ngIf="req.open_positions">
+            <span class="detail-label"><i class="fas fa-users"></i> Open Positions</span>
+            <span class="detail-value">{{ req.open_positions }}</span>
+          </div>
+          <div class="detail-item" *ngIf="req.posting_source">
+            <span class="detail-label"><i class="fas fa-globe"></i> Source</span>
+            <span class="detail-value">{{ req.posting_source }}</span>
+          </div>
+        </div>
+        <div class="detail-description" *ngIf="req.description">
+          <span class="detail-label"><i class="fas fa-align-left"></i> Description</span>
+          <p>{{ req.description }}</p>
+        </div>
+        <div class="detail-comment" *ngIf="req.comments">
+          <span class="detail-label"><i class="fas fa-comment"></i> Requester Note</span>
+          <p>{{ req.comments }}</p>
+        </div>
+
+        <!-- Bottom Action Buttons (for PENDING, not delegated-out) -->
+        <div class="card-bottom-actions" *ngIf="req.status === 'PENDING' && !req.isDelegatedOutTask">
+          <button class="btn-action btn-approve-full" (click)="openApproveModal(req, $event)">
+            <i class="fas fa-check-circle"></i> Approve Requisition
+          </button>
+          <button class="btn-action btn-reject-full" (click)="openRejectModal(req, $event)">
+            <i class="fas fa-times-circle"></i> Reject Requisition
+          </button>
+          <button class="btn-action btn-delegate-full" (click)="openDelegateModal(req, $event)"
+                  [disabled]="req.is_delegated">
+            <i class="fas fa-share-alt"></i> Delegate Task
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ ACTION MODAL (Approve/Reject) ═══ -->
+  <div class="modal-overlay" *ngIf="showActionModal" (click)="closeActionModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header"
+           [class.header-approve]="actionType === 'APPROVED'"
+           [class.header-reject]="actionType === 'REJECTED'">
+        <h3>
+          <i class="fas" [ngClass]="actionType === 'APPROVED' ? 'fa-check-circle' : 'fa-times-circle'"></i>
+          {{ actionType === 'APPROVED' ? 'Approve' : 'Reject' }} Requisition
+        </h3>
+        <button class="modal-close" (click)="closeActionModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body" *ngIf="actionApproval">
+        <div class="confirm-card">
+          <span class="confirm-id">{{ actionApproval.entity_id }}</span>
+          <h4>{{ actionApproval.job_title }}</h4>
+          <span class="confirm-dept" *ngIf="actionApproval.department_name">{{ actionApproval.department_name }}</span>
+          <div class="confirm-meta" *ngIf="actionApproval.salary_range || actionApproval.experience_range">
+            <span *ngIf="actionApproval.salary_range"><i class="fas fa-rupee-sign"></i> {{ actionApproval.salary_range }}</span>
+            <span *ngIf="actionApproval.experience_range"><i class="fas fa-chart-bar"></i> {{ actionApproval.experience_range }}</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>{{ actionType === 'REJECTED' ? 'Reason for Rejection *' : 'Comments (optional)' }}</label>
+          <textarea [(ngModel)]="actionComments" rows="3" class="form-input"
+                    [placeholder]="actionType === 'REJECTED' ? 'Please provide the reason...' : 'Add any comments...'"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-cancel" (click)="closeActionModal()">Cancel</button>
+          <button class="btn-confirm"
+                  [class.btn-confirm-approve]="actionType === 'APPROVED'"
+                  [class.btn-confirm-reject]="actionType === 'REJECTED'"
+                  (click)="confirmAction()" [disabled]="isActioning">
+            <i class="fas" [ngClass]="isActioning ? 'fa-spinner fa-spin' : (actionType === 'APPROVED' ? 'fa-check' : 'fa-times')"></i>
+            {{ isActioning ? 'Processing...' : (actionType === 'APPROVED' ? 'Confirm Approve' : 'Confirm Reject') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ DELEGATE MODAL ═══ -->
+  <div class="modal-overlay" *ngIf="showDelegateModal" (click)="closeDelegateModal()">
+    <div class="modal-card modal-delegate" (click)="$event.stopPropagation()">
+      <div class="modal-header header-delegate">
+        <h3><i class="fas fa-share-alt"></i> Delegate Approval Task</h3>
+        <button class="modal-close" (click)="closeDelegateModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body" *ngIf="delegateApproval">
+        <p class="delegate-desc">
+          Select managers to delegate the approval of <strong>"{{ delegateApproval.job_title }}"</strong>.
+        </p>
+
+        <!-- Manager List -->
+        <div class="delegate-user-list">
+          <div class="delegate-user-item" *ngFor="let u of delegateUsers"
+               (click)="toggleDelegateUser(u)" [class.selected]="u.selected">
+            <div class="user-avatar-sm">{{ u.name.charAt(0) }}</div>
+            <div class="user-info-col">
+              <span class="user-name">{{ u.name }}</span>
+              <span class="user-role-badge">{{ u.role }}</span>
+            </div>
+            <i class="fas" [ngClass]="u.selected ? 'fa-check-circle' : 'fa-circle'" class="select-icon"></i>
+          </div>
+          <div *ngIf="delegateUsers.length === 0" class="no-managers-msg">
+            <i class="fas fa-info-circle"></i> No managers available for delegation.
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top:12px;">
+          <label>Delegation Note</label>
+          <textarea [(ngModel)]="delegateMemo" rows="2" class="form-input"
+                    placeholder="Add a note for the delegate (optional)..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <span class="selected-count"><i class="fas fa-user-check"></i> {{ selectedDelegateCount }} selected</span>
+          <button class="btn-cancel" (click)="closeDelegateModal()">Cancel</button>
+          <button class="btn-confirm btn-confirm-delegate" (click)="confirmDelegate()"
+                  [disabled]="isDelegating || selectedDelegateCount === 0">
+            <i class="fas" [ngClass]="isDelegating ? 'fa-spinner fa-spin' : 'fa-paper-plane'"></i>
+            {{ isDelegating ? 'Delegating...' : 'Delegate' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-notification" *ngIf="showToastFlag"
+       [class.toast-success]="toastType === 'success'"
+       [class.toast-error]="toastType === 'error'">
+    <i class="fas" [ngClass]="toastType === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
+    {{ toastMessage }}
+  </div>
+
+</div>

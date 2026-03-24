@@ -1,0 +1,193 @@
+.sidebar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1.5rem;
+  transition: padding 0.3s ease;
+}
+
+.sidebar-container.is-collapsed {
+  padding: 1.5rem 0.75rem;
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+  position: relative;
+}
+
+.is-collapsed .brand-section {
+  justify-content: center;
+  gap: 0;
+}
+
+.brand-logo {
+  width: 48px;
+  height: 48px;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.is-collapsed .brand-logo {
+  width: 40px;
+  height: 40px;
+}
+
+.brand-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.brand-text h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  position: absolute;
+  right: -0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 20;
+}
+
+.is-collapsed .toggle-btn {
+  position: relative;
+  right: auto;
+  top: auto;
+  transform: none;
+  margin-top: 1rem;
+}
+
+.toggle-btn:hover {
+  color: var(--primary-color);
+  background: var(--bg-main);
+}
+
+.toggle-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.nav-menu {
+  flex: 1;
+}
+
+.nav-heading {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+}
+
+.nav-menu ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  color: var(--text-main);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.is-collapsed .nav-item {
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+.nav-item:hover {
+  background-color: rgba(59, 130, 246, 0.05);
+  color: var(--primary-color);
+  transform: translateX(4px);
+}
+
+.is-collapsed .nav-item:hover {
+  transform: scale(1.05);
+}
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--text-muted);
+  transition: color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.nav-item:hover .nav-icon {
+  color: var(--primary-color);
+}
+
+.active-link {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.active-link .nav-icon {
+  color: white !important;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+}
+
+.upgrade-card {
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.8), rgba(219, 234, 254, 0.8));
+  border: 1px solid rgba(191, 219, 254, 0.6);
+  text-align: center;
+  padding: 1.25rem 1rem;
+}
+
+.upgrade-card h4 {
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.upgrade-card p {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.upgrade-card .btn {
+  width: 100%;
+  padding: 0.4rem;
+}

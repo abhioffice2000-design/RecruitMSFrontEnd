@@ -1,0 +1,202 @@
+<div class="page-container animate-fade-in">
+  
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Jobs &amp; Postings</h1>
+      <p class="page-subtitle">Create and manage your open positions.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn outline-btn mr-2" style="background:#fff">
+        Export Data
+      </button>
+    </div>
+  </div>
+
+  <div class="job-filters mb-4">
+    <div class="search-input-wrap">
+      <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      <input type="text" placeholder="Search jobs..." class="filter-input" />
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" style="display: flex; justify-content: center; align-items: center; min-height: 300px;">
+    <div class="spinner-sm" style="width: 40px; height: 40px; border: 4px solid rgba(0,0,0,0.1); border-top-color: #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+  </div>
+
+  <div *ngIf="!isLoading" class="grid grid-cols-3 jobs-grid">
+    <ng-container *ngFor="let job of jobs">
+      <div class="card job-card glass-panel clickable" 
+           [class.job-closed]="job.status === 'Closed'" 
+           [class.job-draft]="job.status === 'Draft'"
+           (click)="viewDetails(job)">
+        <div class="job-header">
+          <div class="job-id-tag">#{{ job.id }}</div>
+          <button class="btn-icon" (click)="$event.stopPropagation(); viewDetails(job)">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </button>
+        </div>
+        
+        <div class="job-info mt-2">
+          <h3>{{ job.title }}</h3>
+          <p class="job-dept">{{ job.dept }} &bull; {{ job.type }}</p>
+          
+          <div class="job-meta mt-4">
+            <div class="meta-item">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>{{ job.location }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="job-footer mt-4">
+          <div class="applicants-count">
+            <strong>{{ job.applicants }}</strong> 
+            <span class="text-muted">Applicants</span>
+          </div>
+          
+          <div class="applicant-avatars">
+            <div class="mini-avatar">A</div>
+            <div class="mini-avatar bg-alt">M</div>
+            <div class="mini-avatar bg-gray">+{{ job.applicants > 2 ? job.applicants - 2 : 0 }}</div>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+    <div *ngIf="jobs.length === 0" class="col-span-3" style="text-align: center; padding: 3rem; color: #94a3b8">
+      No jobs found.
+    </div>
+  </div>
+
+</div>
+
+<!-- Job Details Modal -->
+<div class="modal-overlay" *ngIf="showDetailModal" (click)="closeDetailModal()">
+  <div class="modal-content animate-fade-in glass-panel" (click)="$event.stopPropagation()">
+    
+    <!-- Modal Header -->
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <div class="job-icon-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div>
+          <h2>{{ selectedJob?.title }}</h2>
+          <p class="modal-subtitle">{{ selectedJob?.dept }} &bull; {{ selectedJob?.id }}</p>
+        </div>
+      </div>
+      <div class="modal-header-right">
+        <span class="badge badge-lg" 
+              [class.badge-success]="selectedJob?.status === 'Active'" 
+              [class.badge-danger]="selectedJob?.status === 'Closed'" 
+              [class.badge-neutral]="selectedJob?.status === 'Draft'">
+          {{ selectedJob?.status }}
+        </span>
+        <button class="btn-icon" (click)="closeDetailModal()">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Modal Body -->
+    <div class="modal-body">
+      
+      <!-- Quick Info Grid -->
+      <div class="detail-section">
+        <h3 class="section-title">Quick Information</h3>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <div>
+              <span class="detail-label">Location</span>
+              <span class="detail-value">{{ selectedJob?.location }}</span>
+            </div>
+          </div>
+          <div class="detail-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <span class="detail-label">Employment Type</span>
+              <span class="detail-value">{{ selectedJob?.type }}</span>
+            </div>
+          </div>
+          <div class="detail-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <span class="detail-label">Salary Range</span>
+              <span class="detail-value" *ngIf="selectedJob?._raw?.salary_min">
+                {{ selectedJob?._raw?.salary_currency }} {{ selectedJob?._raw?.salary_min | number }} - {{ selectedJob?._raw?.salary_max | number }}
+              </span>
+              <span class="detail-value" *ngIf="!selectedJob?._raw?.salary_min">Not specified</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div class="detail-section">
+        <h3 class="section-title">Job Description</h3>
+        <div class="info-card description-card">
+          <p class="description-text">{{ selectedJob?._raw?.description || 'No description provided.' }}</p>
+        </div>
+      </div>
+
+      <!-- Requirements (Extra details) -->
+      <div class="detail-section">
+        <h3 class="section-title">Requirements & Metadata</h3>
+        <div class="detail-grid-2col">
+          <div class="info-card">
+            <span class="info-label">Experience</span>
+            <span class="info-value">{{ selectedJob?._raw?.experience_min || '0' }} - {{ selectedJob?._raw?.experience_max || 'Any' }} years</span>
+          </div>
+          <div class="info-card">
+            <span class="info-label">Open Positions</span>
+            <span class="info-value">{{ selectedJob?._raw?.open_positions }}</span>
+          </div>
+          <div class="info-card">
+            <span class="info-label">Posted Date</span>
+            <span class="info-value">{{ formatDate(selectedJob?._raw?.created_at) }}</span>
+          </div>
+          <div class="info-card">
+            <span class="info-label">Applicants</span>
+            <span class="info-value">{{ selectedJob?.applicants }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skills (Fetched live) -->
+      <div class="detail-section" *ngIf="selectedJobSkills.length > 0">
+        <h3 class="section-title">Required Skills</h3>
+        <div class="skills-list">
+          <span class="skill-tag" *ngFor="let s of selectedJobSkills">
+            {{ s.skill_name }} 
+            <small *ngIf="s.required_level">({{ s.required_level }})</small>
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Modal Footer -->
+    <div class="modal-footer">
+      <button class="btn outline-btn" (click)='closeDetailModal()'>Close</button>
+    </div>
+  </div>
+</div>

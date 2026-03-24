@@ -1,0 +1,214 @@
+<div class="register-page">
+  <div class="register-card">
+    <!-- Left: Form Panel -->
+    <div class="form-panel">
+      <div class="form-content">
+        <!-- Logo -->
+        <div class="logo-wrapper">
+          <img src="assets/images/adnatelogo.png" alt="Adnate IT Solutions Logo" class="brand-logo-img" />
+        </div>
+
+        <!-- Heading -->
+        <div class="form-header">
+          <h1>Create Account</h1>
+          <p>Register to access the recruitment portal</p>
+        </div>
+
+        <form (ngSubmit)="onRegister()" class="register-form">
+          <!-- Two-column row: First Name & Last Name -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="firstName">First Name</label>
+              <div class="input-wrapper">
+                <i class="fas fa-user input-icon"></i>
+                <input
+                  type="text"
+                  id="firstName"
+                  name="firstName"
+                  [(ngModel)]="data.firstName"
+                  placeholder="Enter your first name"
+                  [disabled]="isLoading"
+                  (focus)="clearError('firstName')"
+                />
+              </div>
+              <span class="field-error" *ngIf="errors['firstName']">{{ errors['firstName'] }}</span>
+            </div>
+
+            <div class="form-group">
+              <label for="lastName">Last Name</label>
+              <div class="input-wrapper">
+                <i class="fas fa-user input-icon"></i>
+                <input
+                  type="text"
+                  id="lastName"
+                  name="lastName"
+                  [(ngModel)]="data.lastName"
+                  placeholder="Enter your last name"
+                  [disabled]="isLoading"
+                  (focus)="clearError('lastName')"
+                />
+              </div>
+              <span class="field-error" *ngIf="errors['lastName']">{{ errors['lastName'] }}</span>
+            </div>
+          </div>
+
+          <!-- Two-column row: Email & Phone Number -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="email">Email Address</label>
+              <div class="input-wrapper">
+                <i class="fas fa-envelope input-icon"></i>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  [(ngModel)]="data.email"
+                  placeholder="Enter your email"
+                  [disabled]="isLoading"
+                  (focus)="clearError('email')"
+                  (input)="validateEmail()"
+                />
+              </div>
+              <span class="field-error" *ngIf="errors['email']">{{ errors['email'] }}</span>
+            </div>
+
+            <div class="form-group">
+              <label for="phone">Phone Number</label>
+              <div class="input-wrapper">
+                <i class="fas fa-phone input-icon"></i>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  [(ngModel)]="data.phone"
+                  placeholder="Enter your phone number"
+                  [disabled]="isLoading"
+                  (focus)="clearError('phone')"
+                  (input)="validatePhone()"
+                />
+              </div>
+              <span class="field-error" *ngIf="errors['phone']">{{ errors['phone'] }}</span>
+            </div>
+          </div>
+
+          <!-- Two-column row: Password & Confirm Password -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="password">Password</label>
+              <div class="input-wrapper">
+                <i class="fas fa-lock input-icon"></i>
+                <input
+                  [type]="showPassword ? 'text' : 'password'"
+                  id="password"
+                  name="password"
+                  [(ngModel)]="data.password"
+                  placeholder="Create a password"
+                  autocomplete="new-password"
+                  [disabled]="isLoading"
+                  (focus)="clearError('password')"
+                  (input)="validatePassword()"
+                />
+                <button type="button" class="toggle-password" (click)="togglePassword()" tabindex="-1">
+                  <i [class]="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                </button>
+              </div>
+              <span class="field-error" *ngIf="errors['password']">{{ errors['password'] }}</span>
+            </div>
+
+            <div class="form-group">
+              <label for="confirmPassword">Confirm Password</label>
+              <div class="input-wrapper">
+                <i class="fas fa-shield-alt input-icon"></i>
+                <input
+                  [type]="showConfirmPassword ? 'text' : 'password'"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  [(ngModel)]="data.confirmPassword"
+                  placeholder="Confirm your password"
+                  autocomplete="new-password"
+                  [disabled]="isLoading"
+                  (focus)="clearError('confirmPassword')"
+                  (input)="validateConfirmPassword()"
+                />
+                <button type="button" class="toggle-password" (click)="toggleConfirmPassword()" tabindex="-1">
+                  <i [class]="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                </button>
+              </div>
+              <span class="field-error" *ngIf="errors['confirmPassword']">{{ errors['confirmPassword'] }}</span>
+            </div>
+          </div>
+
+          <!-- Submit -->
+          <button
+            type="submit"
+            class="btn-register"
+            [disabled]="isLoading"
+            [class.loading]="isLoading"
+          >
+            <span *ngIf="!isLoading">Create Account</span>
+            <span *ngIf="isLoading" class="spinner-text">
+              <i class="fas fa-spinner fa-spin"></i> Creating account...
+            </span>
+          </button>
+        </form>
+
+        <!-- Login link -->
+        <div class="form-footer">
+          <p class="login-link">Already have an account? <a routerLink="/login">Sign In</a></p>
+          <p class="copyright">&copy; 2026 Adnate IT Solutions. All rights reserved.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Image Panel -->
+    <div class="image-panel">
+      <div class="image-wrapper">
+        <img src="assets/images/login-hero.png" alt="Join our team" class="hero-image" />
+        <div class="image-overlay"></div>
+
+        <!-- Floating cards -->
+        <div class="float-card card-welcome">
+          <div class="card-icon welcome-icon">
+            <i class="fas fa-rocket"></i>
+          </div>
+          <div class="card-info">
+            <strong>Start Your Journey</strong>
+            <span>Join thousands of candidates</span>
+          </div>
+        </div>
+
+        <div class="float-card card-stats">
+          <div class="stat-item">
+            <i class="fas fa-briefcase"></i>
+            <div>
+              <strong>150+</strong>
+              <span>Open Positions</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="float-card card-team">
+          <i class="fas fa-users team-icon"></i>
+          <div class="card-info">
+            <strong>Growing Team</strong>
+            <span>500+ employees worldwide</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div
+    class="toast-notification"
+    *ngIf="showToastFlag"
+    [class.toast-success]="toastType === 'success'"
+    [class.toast-error]="toastType === 'error'"
+  >
+    <i [class]="toastType === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle'"></i>
+    <span>{{ toastMessage }}</span>
+    <button class="toast-close" (click)="hideToast()">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+</div>

@@ -1,0 +1,138 @@
+/* Shell chrome from hr-dashboard.scss; manager-specific tweaks only */
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 36px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-light, #e2e8f0);
+}
+
+.logo-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  flex-shrink: 0;
+}
+
+.logo-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.logo-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.brand-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--adnate-navy, #1a3a7a);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.brand-subtitle {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+  text-align: left;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.is-collapsed .logo {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.sidebar-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0;
+}
+
+.manager-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.manager-nav .nav-item {
+  margin: 0;
+}
+
+.nav-heading {
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+  letter-spacing: 0.06em;
+  margin: 0 0 10px 2px;
+}
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--text-muted, #64748b);
+}
+
+.manager-nav .nav-item.active .nav-icon,
+.manager-nav .nav-item:hover .nav-icon {
+  color: var(--adnate-blue, #2563eb);
+}
+
+.is-collapsed .nav-heading {
+  display: none;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+}
+
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border-light, #e2e8f0);
+  border-radius: 10px;
+  background: var(--bg-surface, transparent);
+  color: var(--text-muted, #64748b);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: var(--font-family, 'Poppins', system-ui, sans-serif);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.sidebar-collapse-btn:hover {
+  background: var(--adnate-ice, #eff6ff);
+  color: var(--adnate-navy, #1a3a7a);
+  border-color: var(--adnate-pale, #dbeafe);
+}
+
+.is-collapsed .sidebar-collapse-btn span {
+  display: none;
+}
+
+.is-collapsed .manager-nav .nav-item {
+  justify-content: center;
+  padding-left: 10px;
+  padding-right: 10px;
+}

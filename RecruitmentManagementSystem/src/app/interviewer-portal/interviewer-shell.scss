@@ -1,0 +1,119 @@
+/* HR-aligned shell: sidebar + main + header row (same pattern as candidate/manager) */
+
+.dashboard-layout {
+  display: flex;
+  height: 100vh;
+  background: var(--bg-shell, #f8faff);
+  overflow: hidden;
+}
+
+.sidebar {
+  width: var(--sidebar-width, 260px);
+  background: var(--panel, #ffffff);
+  height: 100%;
+  padding: 28px 20px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-sidebar, var(--border-light, #e2e8f0));
+  box-shadow: 4px 0 24px rgba(26, 58, 122, 0.04);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-sidebar, var(--border-light, #e2e8f0));
+
+  .logo-img {
+    height: 42px;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    object-position: left center;
+    display: block;
+  }
+}
+
+.interviewer-main {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.interviewer-top-bar {
+  flex-shrink: 0;
+  padding: 16px 28px 12px;
+  border-bottom: 1px solid var(--border-sidebar, var(--border-light, #e2e8f0));
+  background: var(--panel, var(--bg-surface, #fff));
+}
+
+.interviewer-outlet-wrap {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 20px 28px 28px;
+}
+
+.dashboard-layout.interviewer-sidebar-collapsed .sidebar {
+  width: 96px;
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.dashboard-layout.interviewer-sidebar-collapsed .logo {
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.dashboard-layout.interviewer-sidebar-collapsed .logo .logo-img {
+  object-position: center;
+}
+
+.dashboard-layout.interviewer-sidebar-collapsed .nav-item {
+  justify-content: center;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.dashboard-layout.interviewer-sidebar-collapsed .nav-item .icon {
+  margin: 0;
+}
+
+.sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border-light, #e2e8f0);
+  border-radius: 10px;
+  background: var(--bg-surface, transparent);
+  color: var(--text-muted, #64748b);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: var(--font-family, inherit);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.sidebar-collapse-btn:hover {
+  background: var(--adnate-ice, #eff6ff);
+  color: var(--adnate-navy, #1a3a7a);
+  border-color: var(--adnate-pale, #dbeafe);
+}
+
+@media (max-width: 900px) {
+  .interviewer-top-bar {
+    padding: 12px 16px 10px;
+  }
+
+  .interviewer-outlet-wrap {
+    padding: 16px;
+  }
+}

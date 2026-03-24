@@ -1,0 +1,103 @@
+<div class="page-container animate-fade-in">
+  
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Dashboard Overview</h1>
+      <p class="page-subtitle">Welcome back, here's what's happening today.</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-3 metrics-grid">
+    <ng-container *ngFor="let metric of metrics">
+      <div class="card metric-card glass-panel">
+        <div class="metric-header">
+          <div class="metric-icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="metric.icon" />
+            </svg>
+          </div>
+          <span class="metric-trend" [class.trend-positive]="metric.isPositive" [class.trend-negative]="!metric.isPositive">
+            {{ metric.trend }}
+          </span>
+        </div>
+        <div class="metric-body">
+          <h3>{{ metric.value }}</h3>
+          <p>{{ metric.title }}</p>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <div class="grid grid-cols-3 content-grid">
+    
+    <div class="card glass-panel col-span-2">
+      <div class="card-header">
+        <h2>Recent Activities</h2>
+        <button class="btn btn-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+          </svg>
+        </button>
+      </div>
+      
+      <div class="table-container mt-4">
+        <table class="enterprise-table">
+          <thead>
+            <tr>
+              <th>Candidate</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let activity of recentActivities">
+              <td><strong>{{ activity.candidate }}</strong></td>
+              <td>{{ activity.role }}</td>
+              <td>
+                <span class="badge" [class.badge-success]="activity.status === 'Completed' || activity.status === 'ACTIVE'" [class.badge-primary]="activity.status === 'In Progress'" [class.badge-warning]="activity.status === 'Pending' || activity.status === 'Wait for response'" [class.badge-danger]="activity.status === 'Closed'">
+                  {{ activity.status }}
+                </span>
+              </td>
+              <td class="text-muted">{{ activity.time }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card glass-panel col-span-1">
+      <div class="card-header">
+        <h2>Quick Actions</h2>
+      </div>
+      
+      <div class="quick-actions-list mt-4">
+        <button class="quick-action-btn">
+          <div class="icon-sq blue">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div class="text-content">
+            <h4>Schedule Interview</h4>
+            <p>Set up a meeting with a candidate</p>
+          </div>
+        </button>
+
+        <button class="quick-action-btn mt-3">
+          <div class="icon-sq orange">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div class="text-content">
+            <h4>Review Applications</h4>
+            <p>34 pending reviews</p>
+          </div>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+</div>

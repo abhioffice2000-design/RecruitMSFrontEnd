@@ -1,0 +1,92 @@
+<div class="job-detail-page animate-fade-in" *ngIf="job">
+  <div class="detail-layout">
+    <div class="detail-main">
+      <div class="job-header card">
+        <div class="header-top">
+          <div class="company-logo-lg">{{ job.company[0] }}</div>
+          <div class="header-info">
+            <h1>{{ job.title }}</h1>
+            <p class="company-name">{{ job.company }} <i class="fa-solid fa-circle-check verified"></i></p>
+            <div class="header-meta">
+              <span><i class="fa-solid fa-location-dot"></i> {{ job.location }}</span>
+              <span><i class="fa-solid fa-building"></i> {{ job.companyType }}</span>
+              <span><i class="fa-solid fa-users"></i> {{ job.companySize }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="header-tags">
+          <span class="badge" [ngClass]="'badge-' + job.type.toLowerCase()">{{ job.type }}</span>
+          <span class="tag"><i class="fa-solid fa-briefcase"></i> {{ job.experienceLevel }}</span>
+          <span class="tag"><i class="fa-solid fa-layer-group"></i> {{ job.department }}</span>
+          <span class="tag"><i class="fa-regular fa-calendar"></i> Posted {{ getTimeAgo(job.postedDate) }}</span>
+        </div>
+        <div class="salary-bar">
+          <span class="salary-label"><i class="fa-solid fa-money-bill-wave"></i> Compensation</span>
+          <span class="salary-value">{{ job.salary }}</span>
+        </div>
+      </div>
+
+      <div class="detail-section card">
+        <h2>About This Role</h2>
+        <p class="desc-text">{{ job.description }}</p>
+      </div>
+
+      <div class="detail-section card">
+        <h2>Responsibilities</h2>
+        <ul class="detail-list">
+          <li *ngFor="let r of job.responsibilities">{{ r }}</li>
+        </ul>
+      </div>
+
+      <div class="detail-section card">
+        <h2>Requirements</h2>
+        <ul class="detail-list">
+          <li *ngFor="let r of job.requirements">{{ r }}</li>
+        </ul>
+      </div>
+
+      <div class="detail-section card">
+        <h2>Benefits & Perks</h2>
+        <div class="benefits-grid">
+          <div *ngFor="let b of job.benefits" class="benefit-item">
+            <i class="fa-solid fa-star benefit-icon"></i><span>{{ b }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-section card">
+        <h2>Required Skills</h2>
+        <div class="skills-list">
+          <span *ngFor="let s of job.skills" class="skill-chip">{{ s }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-sidebar">
+      <div class="sidebar-sticky">
+        <div class="apply-card card">
+          <h3>Interested in this role?</h3>
+          <p class="applicant-info"><i class="fa-solid fa-users"></i> {{ job.applicants }} people applied</p>
+          <button class="btn btn-primary btn-lg apply-btn" [routerLink]="['/apply', job.id]" *ngIf="!applied">
+            <i class="fa-solid fa-paper-plane"></i> Apply Now
+          </button>
+          <div class="already-applied" *ngIf="applied">
+            <i class="fa-solid fa-circle-check"></i> Application Submitted
+          </div>
+          <button class="btn btn-secondary save-job-btn" (click)="toggleSave()">
+            <i [ngClass]="job.saved ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i>
+            {{ job.saved ? 'Saved' : 'Save Job' }}
+          </button>
+        </div>
+        <div class="share-card card">
+          <h4>Share this job</h4>
+          <div class="share-buttons">
+            <button class="share-btn"><i class="fa-solid fa-envelope"></i> Email</button>
+            <button class="share-btn"><i class="fa-brands fa-linkedin"></i> LinkedIn</button>
+            <button class="share-btn"><i class="fa-solid fa-link"></i> Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

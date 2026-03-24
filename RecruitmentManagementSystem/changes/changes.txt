@@ -1,0 +1,11 @@
+1)same candidate user registration should show duplicate
+2)oauth should be there , without login no services should run
+3)user should be logged out after registration automaticaly
+4)requistion details should have the name of the department where it goes .
+(workflow diagram)
+5)delegation should be based on particular task not based on date.
+6)delegation on date should be on for different panel .
+7)ui in manager has super admin written remove that .
+8)calender , it should have user who is available .
+business calender no work on leave .
+9)team meet call add.

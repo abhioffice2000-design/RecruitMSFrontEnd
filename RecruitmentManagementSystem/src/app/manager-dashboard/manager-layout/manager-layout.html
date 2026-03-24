@@ -1,0 +1,35 @@
+<div
+  class="dashboard-layout has-mobile-nav-inbar"
+  [class.manager-sidebar-collapsed]="sidebarCollapsed"
+  [class.mobile-nav-open]="mobileNavOpen"
+>
+  <div
+    class="mobile-nav-backdrop"
+    *ngIf="mobileNavOpen"
+    (click)="mobileNavOpen = false"
+    aria-hidden="true"
+  ></div>
+  <aside class="sidebar">
+    <app-manager-sidebar
+      [isCollapsed]="sidebarCollapsed"
+      (toggle)="onSidebarToggle()"
+    ></app-manager-sidebar>
+  </aside>
+
+  <main class="main-content manager-main">
+    <div class="manager-top-bar">
+      <button
+        type="button"
+        class="mobile-menu-btn mobile-menu-btn--inbar"
+        (click)="mobileNavOpen = !mobileNavOpen"
+        aria-label="Open navigation menu"
+      >
+        <i class="fas fa-bars" aria-hidden="true"></i>
+      </button>
+      <app-header></app-header>
+    </div>
+    <div class="manager-outlet-wrap">
+      <router-outlet></router-outlet>
+    </div>
+  </main>
+</div>

@@ -1,0 +1,285 @@
+<div class="home-page">
+  <!-- ═══════ NAVBAR ═══════ -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <img src="assets/images/adnatelogo.png" alt="Adnate IT Solutions" class="nav-logo" />
+      </div>
+
+      <ul class="nav-links" [class.mobile-open]="mobileMenuOpen">
+        <li><a (click)="scrollTo('hero')">Home</a></li>
+        <li><a (click)="scrollTo('why-us')">Why Us</a></li>
+        <li><a (click)="scrollTo('how-it-works')">How It Works</a></li>
+        <li><a (click)="scrollTo('job-board')">Job Board</a></li>
+        <li><a (click)="scrollTo('contact')">Contact Us</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <a routerLink="/login" class="btn-nav-login">Log In</a>
+        <a routerLink="/register" class="btn-nav-signup">Sign Up</a>
+      </div>
+
+      <button class="mobile-toggle" (click)="toggleMobileMenu()">
+        <i [class]="mobileMenuOpen ? 'fas fa-times' : 'fas fa-bars'"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ═══════ HERO SECTION ═══════ -->
+  <section class="hero-section" id="hero">
+    <div class="hero-container">
+      <div class="hero-text">
+        <h1 class="hero-headline">
+          Fastest way to match<br />
+          <span class="highlight">people with purpose</span>
+        </h1>
+        <p class="hero-subtitle">
+          Connect companies with standout candidates through curated,
+          pre-vetted introductions — not messy job boards.
+        </p>
+        <div class="hero-cta">
+          <a routerLink="/register" class="btn-hire">Hire Talent</a>
+          <a (click)="scrollTo('job-board')" class="btn-find">Find Your Role</a>
+        </div>
+      </div>
+
+      <div class="hero-visual">
+        <div class="hero-image-wrapper">
+          <img src="assets/images/hero-home.png" alt="Recruitment professionals" class="hero-img" />
+        </div>
+
+        <!-- Floating accent cards -->
+        <div class="float-accent accent-1">
+          <i class="fas fa-user-check"></i>
+          <div>
+            <strong>Pre-vetted</strong>
+            <span>Quality Candidates</span>
+          </div>
+        </div>
+        <div class="float-accent accent-2">
+          <i class="fas fa-bolt"></i>
+          <div>
+            <strong>Fast Matching</strong>
+            <span>7-day avg fill</span>
+          </div>
+        </div>
+        <div class="float-accent accent-3">
+          <i class="fas fa-handshake"></i>
+          <div>
+            <strong>69% Return</strong>
+            <span>Client Retention</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ TRUSTED COMPANIES ═══════ -->
+  <section class="trusted-section">
+    <p class="trusted-label">TRUSTED BY 100+ COMPANIES</p>
+    <div class="trusted-logos">
+      <div class="logo-track">
+        <span class="company-logo"><i class="fas fa-building"></i> TechCorp</span>
+        <span class="company-logo"><i class="fas fa-rocket"></i> LaunchPad</span>
+        <span class="company-logo"><i class="fas fa-chart-line"></i> GrowthHub</span>
+        <span class="company-logo"><i class="fas fa-globe"></i> GlobalHire</span>
+        <span class="company-logo"><i class="fas fa-bolt"></i> Zapier</span>
+        <span class="company-logo"><i class="fas fa-star"></i> BrightStar</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ STATS SECTION ═══════ -->
+  <section class="stats-section">
+    <div class="stats-container">
+      <div class="stat-card">
+        <div class="stat-number">{{ statDays }}<span class="stat-unit"> days</span></div>
+        <p class="stat-desc">Average time to fill<br />in a role</p>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">{{ statPercent }}<span class="stat-unit">%</span></div>
+        <p class="stat-desc">Of clients return to<br />hire again</p>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">{{ statCompanies }}<span class="stat-unit">+</span></div>
+        <p class="stat-desc">Companies found<br />perfect hires</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ WHY CHOOSE US ═══════ -->
+  <section class="why-section" id="why-us">
+    <div class="why-container">
+      <h2 class="section-title">Why choose us?</h2>
+      <div class="why-grid">
+        <div class="why-item">
+          <div class="why-icon"><i class="fas fa-plus"></i></div>
+          <div>
+            <strong>Transparent Hiring Process</strong>
+            <p>Real-time updates, honest feedback, clear communication at every step.</p>
+          </div>
+        </div>
+        <div class="why-item">
+          <div class="why-icon"><i class="fas fa-plus"></i></div>
+          <div>
+            <strong>Future-Ready Talent Pool</strong>
+            <p>Vetted professionals with the skills and mindset to grow with you.</p>
+          </div>
+        </div>
+        <div class="why-item">
+          <div class="why-icon"><i class="fas fa-plus"></i></div>
+          <div>
+            <strong>Human-Centered Matching</strong>
+            <p>We connect people to teams — based on values, not just job titles.</p>
+          </div>
+        </div>
+        <div class="why-item">
+          <div class="why-icon"><i class="fas fa-plus"></i></div>
+          <div>
+            <strong>Speed Without Sacrifices</strong>
+            <p>Hire fast without cutting corners. We vet, so you don't have to.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="why-image-wrapper">
+        <img src="assets/images/team-why-us.png" alt="Our team collaboration" class="why-image" />
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ HOW IT WORKS ═══════ -->
+  <section class="how-section" id="how-it-works">
+    <div class="how-container">
+      <h2 class="section-title">How Adnate RMS Works</h2>
+      <p class="section-subtitle">
+        From curated intros to faster hiring — here's how we match standout
+        talent with forward-thinking companies.
+      </p>
+
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <h3>Tell us what you need</h3>
+          <p>Share your role, goals, what makes a great hire for you.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <h3>We shortlist top matches</h3>
+          <p>Every candidate is pre-vetted — no spam, no scrolling.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <h3>You connect &amp; hire fast</h3>
+          <p>Skip the job boards. Interview, decide, done.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ TESTIMONIALS ═══════ -->
+  <section class="testimonials-section">
+    <div class="testimonial-container">
+      <div class="testimonial-card" *ngIf="testimonials[currentTestimonial] as t">
+        <div class="testimonial-image">
+          <img [src]="t.image" [alt]="t.name" />
+        </div>
+        <div class="testimonial-content">
+          <blockquote>
+            "{{ t.quote }}"
+          </blockquote>
+          <div class="testimonial-author">
+            <strong>{{ t.name }},</strong>
+            <span>{{ t.title }}, {{ t.company }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="testimonial-controls">
+        <button class="ctrl-btn" (click)="prevTestimonial()">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <span class="slide-indicator">{{ currentTestimonial + 1 }}/{{ testimonials.length }}</span>
+        <button class="ctrl-btn" (click)="nextTestimonial()">
+          <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ JOB BOARD ═══════ -->
+  <section class="jobboard-section" id="job-board">
+    <div class="jobboard-container">
+      <div class="jobboard-header">
+        <h2 class="section-title">Job Board</h2>
+        <p>
+          Explore handpicked candidate profiles for high-impact roles — all
+          pre-vetted, ready to interview, and aligned with your needs.
+        </p>
+        <a routerLink="/login" class="btn-browse">Browse Open Roles</a>
+      </div>
+
+      <div class="job-grid">
+        <div class="job-card" *ngFor="let job of jobCards">
+          <h4>{{ job.title }}</h4>
+          <div class="job-meta">
+            <span><i class="fas fa-briefcase"></i> {{ job.experience }}</span>
+            <span><i class="fas fa-map-marker-alt"></i> {{ job.location }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ CTA SECTION ═══════ -->
+  <section class="cta-section" id="contact">
+    <div class="cta-container">
+      <h2>Ready to make hiring simple?</h2>
+      <p>We vet, match, and send you great candidates. No noise. Just results.</p>
+      <div class="cta-buttons">
+        <a routerLink="/register" class="btn-cta-primary">Get Started</a>
+        <a (click)="scrollTo('how-it-works')" class="btn-cta-secondary">Learn More</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════ FOOTER ═══════ -->
+  <footer class="site-footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <img src="assets/images/adnatelogo.png" alt="Adnate IT Solutions" class="footer-logo" />
+        <p>Connecting talent.<br />Building futures.</p>
+      </div>
+
+      <div class="footer-links">
+        <div class="footer-col">
+          <h4>Platform</h4>
+          <ul>
+            <li><a (click)="scrollTo('how-it-works')">How It Works</a></li>
+            <li><a (click)="scrollTo('job-board')">Job Board</a></li>
+            <li><a routerLink="/register">For Candidates</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Company</h4>
+          <ul>
+            <li><a (click)="scrollTo('why-us')">About Us</a></li>
+            <li><a href="#">Careers</a></li>
+            <li><a href="#">Blog</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Support</h4>
+          <ul>
+            <li><a href="#">Help Center</a></li>
+            <li><a href="#">Privacy Policy</a></li>
+            <li><a href="#">Terms of Service</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2026 Adnate IT Solutions. All rights reserved.</p>
+    </div>
+  </footer>
+</div>

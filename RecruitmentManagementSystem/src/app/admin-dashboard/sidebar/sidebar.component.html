@@ -1,0 +1,38 @@
+<div class="sidebar-container" [class.is-collapsed]="isCollapsed">
+  <div class="brand-section">
+    <div class="brand-logo">
+      <img src="assets/images/adnatelogo.png" alt="Adnate IT Solutions Logo" class="brand-logo-img" />
+    </div>
+    <div class="brand-text" *ngIf="!isCollapsed">
+      <h2>RMS <span class="badge">PRO</span></h2>
+      <p>Enterprise Edition</p>
+    </div>
+    <button class="toggle-btn" (click)="toggleCollapse()">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="isCollapsed ? 'M13 5l7 7-7 7M5 5l7 7-7 7' : 'M11 19l-7-7 7-7M19 19l-7-7 7-7'" />
+      </svg>
+    </button>
+  </div>
+
+  <nav class="nav-menu">
+    <p class="nav-heading" *ngIf="!isCollapsed">Main Navigation</p>
+    <ul>
+      <li *ngFor="let item of navItems; trackBy: trackByPath">
+        <a [routerLink]="item.path" routerLinkActive="active-link" class="nav-item" [title]="isCollapsed ? item.label : ''">
+          <svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="item.icon" />
+          </svg>
+          <span *ngIf="!isCollapsed">{{ item.label }}</span>
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <div class="sidebar-footer">
+    <app-theme-toggle [compact]="isCollapsed"></app-theme-toggle>
+    <button type="button" class="app-btn-logout" (click)="logout()" title="Logout">
+      <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+      <span *ngIf="!isCollapsed">Logout</span>
+    </button>
+  </div>
+</div>

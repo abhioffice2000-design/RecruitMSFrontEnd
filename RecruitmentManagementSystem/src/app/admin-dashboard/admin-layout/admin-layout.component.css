@@ -1,0 +1,130 @@
+.layout-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--adnate-page, var(--bg-main, #f8faff));
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(37, 99, 235, 0.06) 0%, transparent 42%),
+    radial-gradient(circle at 88% 78%, rgba(26, 58, 122, 0.05) 0%, transparent 40%);
+}
+
+.sidebar-wrapper {
+  width: 280px;
+  height: calc(100vh - 2rem);
+  margin: 1rem;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  overflow-y: auto;
+  transition: width 0.3s ease;
+}
+
+.layout-container.sidebar-collapsed .sidebar-wrapper {
+  width: 80px;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.header-wrapper {
+  height: 72px;
+  margin: 1rem 1rem 0 0;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 5;
+  min-width: 0;
+}
+
+.admin-mobile-menu-btn {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-left: 0.5rem;
+  border: 1px solid var(--border-light, #e2e8f0);
+  border-radius: 12px;
+  background: var(--bg-surface, #fff);
+  color: var(--adnate-navy, #1a3a7a);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.admin-mobile-menu-btn:hover {
+  background: var(--adnate-ice, #eff6ff);
+}
+
+.admin-mobile-backdrop {
+  display: none;
+}
+
+.content-body {
+  flex: 1;
+  padding: 1.5rem 1rem 1.5rem 0;
+  overflow-y: auto;
+  min-height: 0; /* Important for scroll */
+}
+
+@media (max-width: 1024px) {
+  .admin-mobile-menu-btn {
+    display: inline-flex;
+  }
+
+  .admin-mobile-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(2px);
+  }
+
+  .sidebar-wrapper {
+    position: fixed;
+    left: 1rem;
+    top: 1rem;
+    bottom: 1rem;
+    z-index: 100;
+    transform: translateX(calc(-100% - 2rem));
+    transition: transform 0.28s ease;
+    max-height: calc(100vh - 2rem);
+  }
+
+  .layout-container.menu-open .sidebar-wrapper {
+    transform: translateX(0);
+  }
+
+  .header-wrapper,
+  .content-body {
+    margin-right: 1rem;
+  }
+
+  .header-wrapper {
+    padding-right: 0.5rem;
+  }
+
+  .header-wrapper app-header {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .content-body {
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+}
+
+@media (min-width: 1025px) {
+  .admin-mobile-backdrop {
+    display: none !important;
+  }
+}

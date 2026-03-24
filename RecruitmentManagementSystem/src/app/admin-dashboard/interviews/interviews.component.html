@@ -1,0 +1,75 @@
+<div class="page-container animate-fade-in">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Interview Schedule</h1>
+      <p class="page-subtitle">Manage upcoming technical and HR interviews.</p>
+    </div>
+    <div class="header-actions">
+      <div class="date-picker-mock glass-panel">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span>{{ today }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="timeline-container glass-panel card">
+    
+    <div class="timeline-header border-bottom pb-4 mb-4">
+      <h2 class="text-lg font-semibold">Interview Timeline</h2>
+    </div>
+
+    <div class="timeline">
+      <ng-container *ngFor="let schedule of schedules">
+        <div class="timeline-item">
+          <div class="time-column">
+            <span class="font-medium">{{ schedule.start_time }} - {{ schedule.end_time }}</span>
+            <span class="text-xs text-muted">{{ schedule.slot_date }}</span>
+          </div>
+          
+          <div class="line-column">
+            <div class="node" 
+                 [class.node-completed]="schedule.status === 'COMPLETED'" 
+                 [class.node-active]="schedule.status === 'SCHEDULED'"></div>
+            <div class="line"></div>
+          </div>
+          
+          <div class="content-column">
+            <div class="interview-card card" 
+                 [class.card-active]="schedule.status === 'SCHEDULED'"
+                 [class.card-completed]="schedule.status === 'COMPLETED'">
+              <div class="card-top">
+                <span class="badge" [ngClass]="getStatusBadgeClass(schedule.status)">
+                  {{ schedule.status }}
+                </span>
+              </div>
+              
+              <div class="card-mid py-3">
+                <h3 class="text-md font-semibold text-main mb-1">{{ schedule.interview_type }} (Round {{ schedule.round_number }})</h3>
+                <p class="text-sm text-muted">Application: {{ schedule.application_id }}</p>
+              </div>
+              
+              <div class="card-bottom border-top pt-3 flex justify-between items-center">
+                <div class="person-info">
+                  <div class="mini-avatar">{{ schedule.interview_id.charAt(0) }}</div>
+                  <span class="text-sm font-medium">{{ schedule.interview_id }}</span>
+                </div>
+                
+                <div class="interviewer-info text-sm text-muted flex items-center gap-1">
+                  <span>Slot: {{ schedule.slot_id }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <div *ngIf="schedules.length === 0" class="text-center text-muted" style="padding: 2rem;">
+        No interviews found.
+      </div>
+    </div>
+    
+  </div>
+</div>

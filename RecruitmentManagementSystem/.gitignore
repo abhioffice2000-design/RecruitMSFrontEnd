@@ -1,0 +1,11 @@
+# Ignore everything in the root by default
+
+/node_modules
+/dist
+/.angular
+# Allow the src directory and everything inside it
+!/src/
+
+# Allow the .gitignore file itself to be tracked
+!/.gitignore
+

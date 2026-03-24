@@ -1,0 +1,237 @@
+<div class="page-container animate-fade-in">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Candidates Management</h1>
+      <p class="page-subtitle">View and manage applicant pipeline.</p>
+    </div>
+    <div class="header-actions">
+      <!-- Add Candidate button could be implemented later if needed -->
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="card glass-panel main-content-card" style="display: flex; justify-content: center; align-items: center; min-height: 300px;">
+    <div class="spinner-sm" style="width: 40px; height: 40px; border: 4px solid rgba(0,0,0,0.1); border-top-color: #2563eb; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+    <p style="margin-left: 1rem; color: #64748b; font-weight: 500;">Loading candidates...</p>
+  </div>
+
+  <div *ngIf="!isLoading" class="card glass-panel main-content-card">
+    <div class="toolbar">
+      <div class="search-input-wrap">
+        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input type="text" placeholder="Search by name, ID or role..." class="filter-input" [(ngModel)]="searchQuery" (ngModelChange)="applyFilters()" />
+      </div>
+
+      <div class="filter-actions">
+        <select class="filter-select" [(ngModel)]="statusFilter" (ngModelChange)="applyFilters()">
+          <option>All Statuses</option>
+          <option>Registered</option>
+          <option>New Applied</option>
+          <option>In Review</option>
+          <option>Hired</option>
+          <option>Rejected</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table class="enterprise-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Candidate Info</th>
+            <th>Applied Role</th>
+            <th>Experience</th>
+            <th>Applied Date</th>
+            <th class="status-col">Status</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let c of pagedCandidates">
+            <td class="text-muted">{{ c.candidate_id }}</td>
+            <td>
+              <div class="person-info">
+                <div class="avatar">{{ getInitials(c.candidate_name) }}</div>
+                <div>
+                  <strong>{{ c.candidate_name }}</strong>
+                  <div style="font-size: 11px; color: #64748b">{{ c.candidate_email }}</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="badge badge-secondary" style="background: #f1f5f9; color: #475569">{{ getJobTitle(c.requisition_id) }}</span></td>
+            <td>{{ c.experience_years }} years</td>
+            <td>{{ formatDate(c.applied_at) }}</td>
+            <td class="status-col">
+              <span class="badge" 
+                    [class.badge-success]="c.status === 'Hired'" 
+                    [class.badge-primary]="c.status === 'In Review'" 
+                    [class.badge-info]="c.status === 'Registered'"
+                    [class.badge-warning]="c.status === 'New Applied'" 
+                    [class.badge-danger]="c.status === 'Rejected'">
+                {{ c.status }}
+              </span>
+            </td>
+            <td class="actions-col">
+              <button class="view-details-btn" (click)="viewDetails(c)">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                View Details
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="filteredCandidates.length === 0">
+            <td colspan="7" style="text-align: center; padding: 3rem; color: #94a3b8">
+              No candidates found matching your selection.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="pagination-container" *ngIf="filteredCandidates.length > 0">
+      <div class="pagination-info">
+        Showing <strong>{{ (currentPage - 1) * pageSize + 1 }}</strong> to 
+        <strong>{{ Math.min(currentPage * pageSize, filteredCandidates.length) }}</strong> of 
+        <strong>{{ filteredCandidates.length }}</strong> candidates
+      </div>
+      
+      <div class="pagination-controls">
+        <button class="page-btn nav-btn" [disabled]="currentPage === 1" (click)="prevPage()">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+          Prev
+        </button>
+        
+        <div class="page-numbers">
+          <ng-container *ngFor="let p of pageNumbers">
+            <button *ngIf="p !== 0" class="page-btn" [class.active]="p === currentPage" (click)="goToPage(p)">{{ p }}</button>
+            <span *ngIf="p === 0" class="pagination-ellipsis">&hellip;</span>
+          </ng-container>
+        </div>
+        
+        <button class="page-btn nav-btn" [disabled]="currentPage === totalPages" (click)="nextPage()">
+          Next
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Candidate Details Modal -->
+<div class="modal-overlay" *ngIf="selectedCandidate" (click)="closeDetails()">
+  <div class="modal-content animate-fade-in glass-panel" (click)="$event.stopPropagation()">
+    
+    <!-- Modal Header -->
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <div class="candidate-avatar-lg">{{ getInitials(selectedCandidate.candidate_name) }}</div>
+        <div>
+          <h2>{{ selectedCandidate.candidate_name }}</h2>
+          <p class="modal-subtitle">{{ getJobTitle(selectedCandidate.requisition_id) }} &bull; {{ selectedCandidate.candidate_id }}</p>
+        </div>
+      </div>
+      <div class="modal-header-right">
+        <span class="badge badge-lg" 
+              [class.badge-success]="selectedCandidate.status === 'Hired'" 
+              [class.badge-primary]="selectedCandidate.status === 'In Review'" 
+              [class.badge-warning]="selectedCandidate.status === 'New Applied'" 
+              [class.badge-danger]="selectedCandidate.status === 'Rejected'">
+          {{ selectedCandidate.status }}
+        </span>
+        <button class="btn-icon" (click)="closeDetails()">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Modal Body -->
+    <div class="modal-body">
+      
+      <!-- Contact Info Section -->
+      <div class="detail-section">
+        <h3 class="section-title">Contact Information</h3>
+        <div class="detail-grid">
+          <div class="detail-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <div>
+              <span class="detail-label">Email</span>
+              <span class="detail-value">{{ selectedCandidate.candidate_email }}</span>
+            </div>
+          </div>
+          <div class="detail-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+            </svg>
+            <div>
+              <span class="detail-label">Phone</span>
+              <span class="detail-value">{{ selectedCandidate.candidate_phone }}</span>
+            </div>
+          </div>
+          <div class="detail-item">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <div>
+              <span class="detail-label">Location</span>
+              <span class="detail-value">{{ selectedCandidate.location }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Application Details -->
+      <div class="detail-section">
+        <h3 class="section-title">Application Details</h3>
+        <div class="detail-grid-2col">
+          <div class="info-card">
+            <span class="info-label">Applied Role</span>
+            <span class="info-value">{{ getJobTitle(selectedCandidate.requisition_id) }}</span>
+          </div>
+          <div class="info-card">
+            <span class="info-label">Current Stage</span>
+            <span class="info-value">{{ selectedCandidate.stage_name }}</span>
+          </div>
+          <div class="info-card">
+            <span class="info-label">Experience</span>
+            <span class="info-value">{{ selectedCandidate.experience_years }} years</span>
+          </div>
+          <div class="info-card">
+            <span class="info-label">Applied Date</span>
+            <span class="info-value">{{ formatDate(selectedCandidate.applied_at) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skills (Fetched live) -->
+      <div class="detail-section" *ngIf="candidateSkills.length > 0">
+        <h3 class="section-title">Skills</h3>
+        <div class="skills-list">
+          <span class="skill-tag" *ngFor="let s of candidateSkills">
+            {{ s.skill_name }} 
+            <small *ngIf="s.experience_years">({{ s.experience_years }} yrs)</small>
+          </span>
+        </div>
+      </div>
+      <div class="detail-section" *ngIf="candidateSkills.length === 0">
+        <h3 class="section-title">Skills</h3>
+        <p class="text-muted" style="font-size: 13px">No skills data available for this candidate.</p>
+      </div>
+    </div>
+    
+    <!-- Modal Footer -->
+    <div class="modal-footer">
+      <button class="btn outline-btn" (click)='closeDetails()'>Close</button>
+    </div>
+  </div>
+</div>

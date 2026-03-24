@@ -1,0 +1,52 @@
+<div class="page-container animate-fade-in">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Job Requests</h1>
+      <p class="page-subtitle">View your department's hiring requisitions.</p>
+    </div>
+  </div>
+
+  <div class="card glass-panel">
+    <table class="enterprise-table w-full text-left">
+      <thead>
+        <tr>
+          <th class="p-4 border-b">Req ID</th>
+          <th class="p-4 border-b">Position</th>
+          <th class="p-4 border-b">Priority</th>
+          <th class="p-4 border-b">Status</th>
+          <th class="p-4 border-b">Created Date</th>
+          <th class="p-4 border-b">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let req of jobRequests">
+          <td class="p-4 border-b border-light font-bold text-primary">{{ req.id }}</td>
+          <td class="p-4 border-b border-light">
+            <div class="font-medium text-main">{{ req.title }}</div>
+            <div class="text-xs text-muted">{{ req.type }}</div>
+          </td>
+          <td class="p-4 border-b border-light">
+            <span class="badge" 
+                  [class.badge-danger]="req.priority === 'High'"
+                  [class.badge-warning]="req.priority === 'Medium'"
+                  [class.badge-success]="req.priority === 'Low'">
+              {{ req.priority }}
+            </span>
+          </td>
+          <td class="p-4 border-b border-light">
+             <span class="badge" 
+                  [class.badge-success]="req.status === 'Approved'"
+                  [class.badge-warning]="req.status === 'Pending Approval'"
+                  [class.badge-muted]="req.status === 'Draft'">
+              {{ req.status }}
+            </span>
+          </td>
+          <td class="p-4 border-b border-light text-muted">{{ req.date }}</td>
+           <td class="p-4 border-b border-light">
+              <button class="text-primary text-sm font-medium mr-4 hover:underline">View Details</button>
+           </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

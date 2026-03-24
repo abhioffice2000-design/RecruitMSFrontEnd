@@ -1,0 +1,71 @@
+<div
+  class="dashboard-layout"
+  [class.candidate-sidebar-collapsed]="sidebarCollapsed"
+  [class.mobile-nav-open]="mobileNavOpen"
+  [class.has-mobile-nav-inbar]="showHeader"
+>
+  <div
+    class="mobile-nav-backdrop"
+    *ngIf="mobileNavOpen"
+    (click)="mobileNavOpen = false"
+    aria-hidden="true"
+  ></div>
+  <button
+    *ngIf="!showHeader"
+    type="button"
+    class="mobile-menu-btn"
+    (click)="mobileNavOpen = !mobileNavOpen"
+    aria-label="Open navigation menu"
+  >
+    <i class="fas fa-bars" aria-hidden="true"></i>
+  </button>
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">
+        <img src="assets/images/adnatelogo.png" alt="Adnate IT Solutions Logo" class="logo-img" />
+      </div>
+      <div class="logo-text" *ngIf="!sidebarCollapsed">
+        <span class="brand-title">ADNATE</span>
+        <span class="brand-subtitle">Candidate</span>
+      </div>
+    </div>
+
+    <nav class="nav-menu">
+      <a *ngFor="let item of navItems" [routerLink]="item.route" routerLinkActive="active" class="nav-item" [title]="sidebarCollapsed ? item.label : ''">
+        <span class="icon"><i [class]="item.icon"></i></span>
+        <span *ngIf="!sidebarCollapsed">{{ item.label }}</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-logout">
+      <div class="app-sidebar-actions app-sidebar-actions--padded">
+        <app-theme-toggle [compact]="sidebarCollapsed"></app-theme-toggle>
+        <button type="button" class="sidebar-collapse-btn" (click)="sidebarCollapsed = !sidebarCollapsed" [title]="sidebarCollapsed ? 'Expand menu' : 'Collapse menu'">
+          <i [class]="sidebarCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'"></i>
+          <span *ngIf="!sidebarCollapsed">Collapse</span>
+        </button>
+        <button type="button" class="app-btn-logout" (click)="logout()">
+          <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+          <span *ngIf="!sidebarCollapsed">Logout</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content candidate-main">
+    <div class="candidate-top-bar" *ngIf="showHeader">
+      <button
+        type="button"
+        class="mobile-menu-btn mobile-menu-btn--inbar"
+        (click)="mobileNavOpen = !mobileNavOpen"
+        aria-label="Open navigation menu"
+      >
+        <i class="fas fa-bars" aria-hidden="true"></i>
+      </button>
+      <app-header></app-header>
+    </div>
+    <div class="candidate-outlet-wrap">
+      <router-outlet></router-outlet>
+    </div>
+  </main>
+</div>

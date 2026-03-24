@@ -1,0 +1,189 @@
+<div class="dashboard-content">
+  <div class="header">
+    <h2><i class="fas fa-project-diagram"></i> Pipeline Board</h2>
+  </div>
+
+  <!-- Job Selector -->
+  <div class="job-selector-bar">
+    <div class="selector-left">
+      <i class="fas fa-briefcase selector-icon"></i>
+      <select [(ngModel)]="selectedRequisitionId" (ngModelChange)="onJobChange()" class="job-select">
+        <option value="">-- Choose a Job --</option>
+        <option *ngFor="let j of jobs" [value]="j.requisition_id">
+          {{ j.title }} — {{ j.department_name }}
+        </option>
+      </select>
+    </div>
+    <span class="candidate-count" *ngIf="candidates.length > 0">
+      <i class="fas fa-users"></i> {{ candidates.length }} candidate{{ candidates.length !== 1 ? 's' : '' }}
+    </span>
+  </div>
+
+  <!-- Stage Legend: main path + reject branch -->
+  <div class="stage-legend" *ngIf="mainPathStages.length > 0 && selectedRequisitionId">
+    <div class="legend-row legend-main">
+      <span class="legend-label">Main path</span>
+      <div class="legend-item" *ngFor="let s of mainPathStages">
+        <i class="fas {{ s.icon }}"></i>
+        <span>{{ s.stage_name }}</span>
+      </div>
+    </div>
+    <div class="legend-row legend-reject" *ngIf="rejectBranchStages.length > 0">
+      <span class="legend-label">Branch</span>
+      <div class="legend-item reject" *ngFor="let s of rejectBranchStages">
+        <i class="fas fa-times-circle"></i>
+        <span>{{ s.stage_name }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-state" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <p>Loading pipeline...</p>
+  </div>
+
+  <!-- No Job Selected -->
+  <div class="empty-state" *ngIf="!isLoading && !selectedRequisitionId">
+    <i class="fas fa-clipboard-list empty-icon-fa"></i>
+    <h3>Select a Job</h3>
+    <p>Choose a job from the dropdown above to view candidate pipelines.</p>
+  </div>
+
+  <!-- No Candidates -->
+  <div class="empty-state" *ngIf="!isLoading && selectedRequisitionId && candidates.length === 0">
+    <i class="fas fa-user-slash empty-icon-fa"></i>
+    <h3>No Candidates Yet</h3>
+    <p>No applications have been submitted for this position.</p>
+  </div>
+
+  <!-- Per-Candidate Pipeline Cards -->
+  <div class="pipeline-list" *ngIf="!isLoading && selectedRequisitionId && candidates.length > 0">
+    <div class="pipeline-card" *ngFor="let cand of candidates" [class.expanded]="expandedCardId === cand.application_id">
+
+      <!-- Card Header -->
+      <div class="card-header" (click)="toggleExpand(cand.application_id)">
+        <div class="card-left">
+          <div class="avatar">{{ getInitials(cand.candidate_name) }}</div>
+          <div class="card-info">
+            <span class="card-name">{{ cand.candidate_name }}</span>
+            <span class="card-sub">
+              <i class="fas fa-envelope"></i> {{ cand.candidate_email }}
+              <span class="card-divider">|</span>
+              <i class="fas fa-map-marker-alt"></i> {{ cand.location || 'N/A' }}
+            </span>
+          </div>
+        </div>
+        <div class="card-right">
+          <span class="current-stage-pill">
+            <i class="fas {{ getStageIcon(cand.current_stage_id) }}"></i>
+            {{ getStageName(cand.current_stage_id) }}
+          </span>
+          <span class="source-pill"><i class="fas fa-link"></i> {{ cand.source || 'Direct' }}</span>
+          <i class="fas fa-chevron-down expand-icon" [class.rotate]="expandedCardId === cand.application_id"></i>
+        </div>
+      </div>
+
+      <!-- Pipeline tree: main spine + optional reject branch -->
+      <div class="pipeline-progress pipeline-tree">
+        <div class="progress-track">
+          <div class="progress-fill" [style.width]="getProgressWidth(cand)"></div>
+        </div>
+        <div class="tree-spine-row">
+          <div class="stage-dots spine-dots">
+            <div class="stage-dot-wrap"
+                 *ngFor="let dot of (pipelineDotsByApplicationId.get(cand.application_id) || [])"
+                 [class.completed]="getDotStatus(cand, dot) === 'completed'"
+                 [class.current]="getDotStatus(cand, dot) === 'current'"
+                 [class.pending]="getDotStatus(cand, dot) === 'pending'"
+                 (click)="onPipelineDotClick(cand, dot); $event.stopPropagation()">
+              <div class="stage-dot">
+                <i class="fas {{ getDotIcon(dot) }}"></i>
+              </div>
+              <span class="stage-label">{{ getDotLabel(dot) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="reject-branch" *ngIf="rejectBranchStages.length > 0">
+          <div class="branch-connector" aria-hidden="true"></div>
+          <p class="branch-hint">
+            <i class="fas fa-code-branch"></i>
+            Rejection stages are a side branch — you can move a candidate here from <strong>any</strong> stage above without visiting every step.
+          </p>
+          <div class="stage-dots reject-dots">
+            <div class="stage-dot-wrap reject-dot-wrap"
+                 *ngFor="let rs of rejectBranchStages"
+                 [class.pending]="true"
+                 (click)="onStageClick(cand, rs); $event.stopPropagation()">
+              <div class="stage-dot reject-dot">
+                <i class="fas fa-times-circle"></i>
+              </div>
+              <span class="stage-label">{{ rs.stage_name }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expanded Details -->
+      <div class="expanded-details" *ngIf="expandedCardId === cand.application_id">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <i class="fas fa-phone"></i>
+            <div><span class="detail-label">Phone</span><span class="detail-value">{{ cand.candidate_phone || 'N/A' }}</span></div>
+          </div>
+          <div class="detail-item">
+            <i class="fas fa-briefcase"></i>
+            <div><span class="detail-label">Experience</span><span class="detail-value">{{ cand.experience_years || '0' }} years</span></div>
+          </div>
+          <div class="detail-item">
+            <i class="fas fa-calendar-alt"></i>
+            <div><span class="detail-label">Applied</span><span class="detail-value">{{ formatDate(cand.applied_at) }}</span></div>
+          </div>
+          <div class="detail-item">
+            <i class="fas fa-hashtag"></i>
+            <div><span class="detail-label">Application ID</span><span class="detail-value">{{ cand.application_id }}</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Move Confirmation Modal -->
+  <div class="modal-overlay" *ngIf="showMoveConfirm" (click)="cancelMove()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3><i class="fas fa-exchange-alt"></i> Move Candidate</h3>
+        <button class="modal-close" (click)="cancelMove()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body" *ngIf="moveTarget">
+        <div class="move-summary">
+          <div class="move-avatar">{{ getInitials(moveTarget.candidate.candidate_name) }}</div>
+          <div class="move-info">
+            <span class="move-name">{{ moveTarget.candidate.candidate_name }}</span>
+            <div class="move-flow">
+              <span class="move-from">{{ getStageName(moveTarget.candidate.current_stage_id) }}</span>
+              <i class="fas fa-arrow-right move-arrow"></i>
+              <span class="move-to">{{ moveTarget.stage.stage_name }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" (click)="cancelMove()"><i class="fas fa-times"></i> Cancel</button>
+        <button class="btn-confirm" [class.btn-danger-confirm]="isMoveTargetReject()" (click)="confirmMove()" [disabled]="isMoving">
+          <i class="fas" [ngClass]="isMoving ? 'fa-spinner fa-spin' : (isMoveTargetReject() ? 'fa-ban' : 'fa-check')"></i>
+          {{ isMoving ? 'Applying...' : (isMoveTargetReject() ? 'Confirm reject' : 'Confirm Move') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-notification" *ngIf="showToastFlag"
+       [class.toast-success]="toastType === 'success'"
+       [class.toast-error]="toastType === 'error'">
+    <i class="fas" [ngClass]="toastType === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'"></i>
+    <span>{{ toastMessage }}</span>
+  </div>
+</div>

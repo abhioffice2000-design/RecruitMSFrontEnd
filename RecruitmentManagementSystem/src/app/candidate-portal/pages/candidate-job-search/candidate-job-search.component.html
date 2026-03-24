@@ -1,0 +1,96 @@
+<div class="page-wrap animate-fade-in">
+  <div class="page-header">
+    <div>
+      <h1>Browse Approved Positions</h1>
+      <p class="subtitle">Find your next opportunity from <strong>{{ filteredJobs.length }}</strong> approved positions</p>
+    </div>
+  </div>
+
+  <!-- Search & Filters -->
+  <div class="filter-bar">
+    <div class="search-field">
+      <span class="search-icon"><i class="fas fa-search"></i></span>
+      <input type="text"
+             placeholder="Search by title, skill, keyword..."
+             [(ngModel)]="searchQuery"
+             (ngModelChange)="applyFilters()">
+    </div>
+    <select [(ngModel)]="departmentFilter" (ngModelChange)="applyFilters()" class="filter-select">
+      <option value="">All Departments</option>
+      <option *ngFor="let d of departments" [value]="d.department_id">{{ d.department_name }}</option>
+    </select>
+    <select [(ngModel)]="experienceFilter" (ngModelChange)="applyFilters()" class="filter-select">
+      <option value="">Any Experience</option>
+      <option value="1">0 – 1 year</option>
+      <option value="3">0 – 3 years</option>
+      <option value="5">0 – 5 years</option>
+      <option value="10">0 – 10 years</option>
+    </select>
+    <button class="clear-btn" (click)="clearFilters()" *ngIf="searchQuery || departmentFilter || experienceFilter">
+      <i class="fas fa-times"></i> Clear
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-state" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <p>Loading jobs...</p>
+  </div>
+
+  <!-- Empty -->
+  <div class="empty-state" *ngIf="!isLoading && filteredJobs.length === 0">
+    <i class="fas fa-clipboard-list" style="font-size:48px; color:#cbd5e1; margin-bottom:12px; display:block"></i>
+    <h3>No jobs match your criteria</h3>
+    <p *ngIf="allJobs.length === 0">No approved jobs are available right now. Check back soon!</p>
+    <p *ngIf="allJobs.length > 0">Try adjusting your search or filters.</p>
+    <button class="clear-btn" (click)="clearFilters()" *ngIf="allJobs.length > 0">Clear All Filters</button>
+  </div>
+
+  <!-- Job Cards -->
+  <div class="jobs-grid" *ngIf="!isLoading && filteredJobs.length > 0">
+    <div class="job-card" *ngFor="let job of filteredJobs; let i = index"
+         [style.animation-delay]="i * 0.04 + 's'">
+      <div class="card-top">
+        <div class="job-avatar">{{ job.title.charAt(0) }}</div>
+        <div class="job-core">
+          <h3 class="job-title">{{ job.title }}</h3>
+          <span class="job-dept">{{ job.department_name }}</span>
+        </div>
+        <span class="posted-ago">{{ getTimeAgo(job.created_at) }}</span>
+      </div>
+
+      <p class="job-desc">{{ job.description | slice:0:180 }}...</p>
+
+      <div class="job-meta">
+        <span class="meta-item" *ngIf="job.experience_min || job.experience_max">
+          <i class="fas fa-chart-bar"></i> {{ job.experience_min || '0' }} – {{ job.experience_max || 'Any' }} yrs
+        </span>
+        <span class="meta-item" *ngIf="job.salary_min || job.salary_max">
+          <i class="fas fa-money-bill-wave"></i> {{ formatSalary(job.salary_min, job.salary_max, job.salary_currency) }}
+        </span>
+        <span class="meta-item">
+          <i class="fas fa-users"></i> {{ job.open_positions }} {{ +job.open_positions === 1 ? 'position' : 'positions' }}
+        </span>
+        <span class="meta-item" *ngIf="job.posting_source">
+          <i class="fas fa-map-pin"></i> {{ job.posting_source }}
+        </span>
+      </div>
+
+      <div class="job-skills" *ngIf="job.skills.length > 0">
+        <span class="skill-chip" *ngFor="let s of job.skills.slice(0, 5)">
+          {{ s.skill_name }}
+        </span>
+        <span class="skill-more" *ngIf="job.skills.length > 5">+{{ job.skills.length - 5 }} more</span>
+      </div>
+
+      <div class="card-actions">
+        <button class="btn-applied" *ngIf="job.hasApplied" (click)="viewApplications()">
+          <i class="fas fa-check-circle"></i> Already Applied · Check Status
+        </button>
+        <button class="btn-apply" *ngIf="!job.hasApplied" (click)="applyToJob(job.requisition_id)">
+          Apply Now →
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

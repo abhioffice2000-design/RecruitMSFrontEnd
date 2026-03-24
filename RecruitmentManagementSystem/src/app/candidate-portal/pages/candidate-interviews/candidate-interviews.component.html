@@ -1,0 +1,227 @@
+<div class="interviews-page animate-fade-in">
+  <div class="page-header">
+    <div>
+      <h1><i class="fa-solid fa-calendar-check"></i> Interviews</h1>
+      <p>Interview date, slot, and interviewers</p>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn" [class.active]="activeTab === 'scheduled'" (click)="switchTab('scheduled')">
+      <i class="fa-solid fa-calendar-days"></i> My Interviews
+      <span class="tab-count" *ngIf="interviews.length > 0">{{ interviews.length }}</span>
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'slots'" (click)="switchTab('slots')">
+      <i class="fa-solid fa-clock"></i> Available Slots
+      <span class="tab-count" *ngIf="allSlots.length > 0">{{ allSlots.length }}</span>
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-state card">
+    <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+    <p>Loading interview data...</p>
+  </div>
+
+  <!-- ═══════ SCHEDULED INTERVIEWS TAB ═══════ -->
+  <div *ngIf="!isLoading && activeTab === 'scheduled'">
+
+    <div *ngIf="!hasCandidateSession" class="empty-state card">
+      <i class="fa-solid fa-user-slash empty-icon"></i>
+      <h3>Candidate profile not found</h3>
+      <p>Sign out and sign in again so your candidate ID loads. Then you can see interviews and <strong>Join meeting</strong> links here, same as your interviewers.</p>
+      <a class="btn btn-primary" routerLink="/login">Go to login</a>
+    </div>
+
+    <!-- Upcoming Interviews -->
+    <div class="section" *ngIf="hasCandidateSession && getScheduledInterviews().length > 0">
+      <h2 class="section-heading"><i class="fa-solid fa-bell"></i> Upcoming</h2>
+      <div class="interview-grid">
+        <div *ngFor="let item of getScheduledInterviews(); let i = index"
+             class="interview-card card card-hover" [style.animation-delay]="i * 0.06 + 's'">
+          <div class="interview-card-top">
+            <div class="interview-date-box" title="Interview date">
+              <span class="date-label">Interview date</span>
+              <span class="day-name">{{ getDayName(item.interview.scheduled_date) }}</span>
+              <span class="day-num">{{ getDay(item.interview.scheduled_date) }}</span>
+              <span class="month">{{ getMonth(item.interview.scheduled_date) }}</span>
+            </div>
+            <div class="interview-info">
+              <div class="interview-info-head">
+                <div>
+                  <h3>{{ item.jobTitle }}</h3>
+                  <p class="interview-ids" *ngIf="item.applicationId || item.interview.interview_id">
+                    <span *ngIf="item.applicationId"><strong>App:</strong> {{ item.applicationId }}</span>
+                    <span *ngIf="item.interview.interview_id"> · <strong>ID:</strong> {{ item.interview.interview_id }}</span>
+                  </p>
+                  <p class="dept" *ngIf="item.department">{{ item.department }}</p>
+                </div>
+                <a *ngIf="showJoinMeeting(item)"
+                   class="join-btn join-btn--hero"
+                   [href]="item.interview.meeting_link!" target="_blank" rel="noopener noreferrer">
+                  <span class="join-pulse"></span>
+                  <i class="fa-solid fa-video"></i> Join meeting
+                </a>
+              </div>
+              <div class="meta-tags">
+                <span class="meta-tag">
+                  <i [ngClass]="getTypeIcon(item.interview.interview_type)"></i>
+                  {{ item.interview.interview_type || 'Interview' }}
+                </span>
+                <span class="meta-tag" *ngIf="item.interview.scheduled_time">
+                  <i class="fa-regular fa-clock"></i>
+                  {{ item.interview.scheduled_time }}
+                </span>
+                <span class="meta-tag" *ngIf="item.interview.duration_minutes">
+                  <i class="fa-solid fa-hourglass-half"></i>
+                  {{ item.interview.duration_minutes }} min
+                </span>
+              </div>
+              <span class="status-badge" [ngClass]="getStatusClass(item.interview.status)">
+                {{ item.interview.status || 'Scheduled' }}
+              </span>
+            </div>
+          </div>
+          <div class="interview-card-bottom">
+            <span class="location" *ngIf="item.interview.location">
+              <i class="fa-solid fa-location-dot"></i> {{ item.interview.location }}
+            </span>
+            <span class="meet-missing" *ngIf="!item.interview.meeting_link && isScheduledLike(item.interview.status)">
+              <i class="fa-solid fa-link-slash"></i> Meeting link will appear when HR adds it
+            </span>
+          </div>
+
+          <!-- Slot -->
+          <div class="slot-section" *ngIf="item.slots.length > 0">
+            <div class="slot-label"><i class="fa-solid fa-clock-rotate-left"></i> Slot</div>
+            <div class="slot-list">
+              <div *ngFor="let slot of item.slots" class="slot-chip"
+                   [class.selected]="slot.is_selected === 'true' || slot.is_selected === '1'">
+                <i class="fa-regular fa-calendar"></i>
+                {{ formatDate(slot.proposed_date) }} at {{ slot.proposed_time }}
+                <i *ngIf="slot.is_selected === 'true' || slot.is_selected === '1'"
+                   class="fa-solid fa-circle-check selected-icon"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interviewers (GetTs_interview_slot_interviewersObjects) -->
+          <div class="interviewers-section" *ngIf="getInterviewersForItem(item).length > 0">
+            <div class="interviewers-label"><i class="fa-solid fa-user-tie"></i> Interviewers</div>
+            <div class="interviewers-list">
+              <span *ngFor="let inv of getInterviewersForItem(item)" class="interviewer-chip">
+                <i class="fa-solid fa-user"></i> {{ getInterviewerDisplayName(inv) }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Interview Feedback (Optional View – GetTs_interview_feedbackObjects). Show result if allowed. -->
+          <div class="interview-feedback-section" *ngIf="getFeedbackForInterview(item.interview.interview_id).length > 0">
+            <div class="feedback-view-label"><i class="fa-solid fa-clipboard-check"></i> Interview Feedback</div>
+            <div *ngFor="let fb of getFeedbackForInterview(item.interview.interview_id)" class="feedback-card">
+              <div class="feedback-result" *ngIf="fb.result"><strong>Result:</strong> {{ fb.result }}</div>
+              <div class="feedback-rating" *ngIf="fb.rating"><i class="fa-solid fa-star"></i> {{ fb.rating }}</div>
+              <div class="feedback-comments" *ngIf="fb.comments">{{ fb.comments }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Past / completed (interviewer marked COMPLETED in portal) -->
+    <div class="section" *ngIf="hasCandidateSession && getCompletedInterviews().length > 0">
+      <h2 class="section-heading"><i class="fa-solid fa-circle-check"></i> Attended</h2>
+      <div class="interview-grid">
+        <div *ngFor="let item of getCompletedInterviews(); let i = index"
+             class="interview-card card completed-card" [style.animation-delay]="i * 0.06 + 's'">
+          <div class="interview-card-top">
+            <div class="interview-date-box faded" title="Interview date">
+              <span class="date-label">Interview date</span>
+              <span class="day-name">{{ getDayName(item.interview.scheduled_date) }}</span>
+              <span class="day-num">{{ getDay(item.interview.scheduled_date) }}</span>
+              <span class="month">{{ getMonth(item.interview.scheduled_date) }}</span>
+            </div>
+            <div class="interview-info">
+              <h3>{{ item.jobTitle }}</h3>
+              <p class="dept" *ngIf="item.department">{{ item.department }}</p>
+              <div class="meta-tags">
+                <span class="meta-tag">
+                  <i [ngClass]="getTypeIcon(item.interview.interview_type)"></i>
+                  {{ item.interview.interview_type || 'Interview' }}
+                </span>
+                <span class="meta-tag" *ngIf="item.interview.rating">
+                  <i class="fa-solid fa-star"></i> Rating: {{ item.interview.rating }}
+                </span>
+              </div>
+              <span class="status-badge status-completed"><i class="fa-solid fa-check"></i> Attended</span>
+            </div>
+          </div>
+          <div class="feedback-section" *ngIf="item.interview.feedback">
+            <div class="feedback-label"><i class="fa-solid fa-comment"></i> Feedback</div>
+            <p class="feedback-text">{{ item.interview.feedback }}</p>
+          </div>
+          <div class="interviewers-section" *ngIf="getInterviewersForItem(item).length > 0">
+            <div class="interviewers-label"><i class="fa-solid fa-user-tie"></i> Interviewers</div>
+            <div class="interviewers-list">
+              <span *ngFor="let inv of getInterviewersForItem(item)" class="interviewer-chip">
+                <i class="fa-solid fa-user"></i> {{ getInterviewerDisplayName(inv) }}
+              </span>
+            </div>
+          </div>
+          <!-- Interview Feedback (Optional View) -->
+          <div class="interview-feedback-section" *ngIf="getFeedbackForInterview(item.interview.interview_id).length > 0">
+            <div class="feedback-view-label"><i class="fa-solid fa-clipboard-check"></i> Interview Feedback</div>
+            <div *ngFor="let fb of getFeedbackForInterview(item.interview.interview_id)" class="feedback-card">
+              <div class="feedback-result" *ngIf="fb.result"><strong>Result:</strong> {{ fb.result }}</div>
+              <div class="feedback-rating" *ngIf="fb.rating"><i class="fa-solid fa-star"></i> {{ fb.rating }}</div>
+              <div class="feedback-comments" *ngIf="fb.comments">{{ fb.comments }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State (no data in DB yet or no scheduled interviews) -->
+    <div *ngIf="hasCandidateSession && interviews.length === 0" class="empty-state card">
+      <i class="fa-solid fa-calendar-xmark empty-icon"></i>
+      <h3>No Interviews Yet</h3>
+      <p>When HR schedules an interview, it will show here with a <strong>Join meeting</strong> button (same link as for interviewers). Apply to jobs to get started.</p>
+      <a class="btn btn-primary" routerLink="/candidate/jobs">
+        <i class="fa-solid fa-magnifying-glass"></i> Browse Jobs
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════ AVAILABLE SLOTS TAB ═══════ -->
+  <div *ngIf="!isLoading && activeTab === 'slots'">
+    <div *ngIf="allSlots.length > 0" class="slots-grid">
+      <div *ngFor="let slot of allSlots; let i = index" class="slot-card card card-hover"
+           [style.animation-delay]="i * 0.04 + 's'"
+           [class.is-selected]="slot.is_selected === 'true' || slot.is_selected === '1'">
+        <div class="slot-date-box">
+          <span class="slot-day">{{ getDay(slot.proposed_date) }}</span>
+          <span class="slot-month">{{ getMonth(slot.proposed_date) }}</span>
+        </div>
+        <div class="slot-details">
+          <span class="slot-time"><i class="fa-regular fa-clock"></i> {{ slot.proposed_time }}</span>
+          <span class="slot-id"><i class="fa-solid fa-hashtag"></i> {{ slot.slot_id }}</span>
+        </div>
+        <div class="slot-status">
+          <span *ngIf="slot.is_selected === 'true' || slot.is_selected === '1'" class="badge badge-selected">
+            <i class="fa-solid fa-circle-check"></i> Selected
+          </span>
+          <span *ngIf="slot.is_selected !== 'true' && slot.is_selected !== '1'" class="badge badge-available">
+            <i class="fa-regular fa-circle"></i> Available
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="allSlots.length === 0" class="empty-state card">
+      <i class="fa-solid fa-clock empty-icon"></i>
+      <h3>No Available Slots</h3>
+      <p>There are no interview slots available at this time.</p>
+    </div>
+  </div>
+</div>

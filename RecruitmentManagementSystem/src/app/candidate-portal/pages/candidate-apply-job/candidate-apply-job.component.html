@@ -1,0 +1,563 @@
+<div class="page-wrap animate-fade-in">
+
+  <!-- Loading -->
+  <div class="loading-state" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <p>Loading job details...</p>
+  </div>
+
+  <!-- Success Screen -->
+  <div class="success-screen" *ngIf="submitted && !isLoading">
+    <div class="success-card">
+      <div class="success-icon"><i class="fas fa-check-circle" style="font-size:54px; color:#16a34a"></i></div>
+      <h2>Application Submitted!</h2>
+      <p>Your application for <strong>{{ jobTitle }}</strong> has been submitted successfully.</p>
+      <p class="sub">Our team will review your profile and reach out soon.</p>
+      <button class="btn-primary" (click)="goBack()"><i class="fas fa-search" style="margin-right:6px"></i>Browse More Jobs</button>
+    </div>
+  </div>
+
+  <!-- Already Applied Screen -->
+  <div class="success-screen" *ngIf="alreadyApplied && !isLoading && !submitted">
+    <div class="success-card already-applied-card">
+      <div class="success-icon"><i class="fas fa-exclamation-circle" style="font-size:54px; color:#f59e0b"></i></div>
+      <h2>Already Applied!</h2>
+      <p>You have already submitted an application for <strong>{{ jobTitle }}</strong>.</p>
+      <p class="sub" *ngIf="existingApplicationId">Application ID: <strong>{{ existingApplicationId }}</strong></p>
+      <p class="sub">You can only apply once per job opening. Track your existing application below.</p>
+      <div class="already-applied-actions">
+        <button class="btn-primary" style="background:#16a34a" (click)="router.navigate(['/candidate/applications'])">
+          <i class="fas fa-clipboard-list" style="margin-right:6px"></i>Check Application Status
+        </button>
+        <button class="btn-primary" style="background:#64748b; margin-left:10px" (click)="goBack()">
+          <i class="fas fa-search" style="margin-right:6px"></i>Browse Other Jobs
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Apply Form -->
+  <div *ngIf="!isLoading && !submitted && !alreadyApplied">
+    <div class="form-back">
+      <button class="btn-back" (click)="goBack()">← Back to Jobs</button>
+    </div>
+
+    <!-- Job Info Header -->
+    <div class="job-header-card">
+      <div class="job-header-row">
+        <div class="job-avatar">{{ jobTitle.charAt(0) }}</div>
+        <div>
+          <h2>{{ jobTitle }}</h2>
+          <span class="dept-label"><i class="fas fa-building" style="margin-right:4px"></i>{{ jobDepartment }}</span>
+        </div>
+      </div>
+      <div class="job-skills-row" *ngIf="jobSkills.length > 0">
+        <span class="label-text">Required Skills:</span>
+        <span class="skill-chip required" *ngFor="let s of jobSkills">
+          {{ s.skill_name }} <small>({{ s.required_level }})</small>
+        </span>
+      </div>
+    </div>
+
+    <form class="apply-form" (ngSubmit)="submitApplication()">
+
+      <!-- ═══ Section: Resume Upload ══════════════════════════ -->
+      <div class="form-section">
+        <h4 class="section-title"><i class="fas fa-paperclip"></i> Resume / CV</h4>
+
+        <div class="drop-zone"
+             (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)"
+             [class.drag-over]="isDragOver" [class.has-file]="resumeFile">
+
+          <!-- Empty state -->
+          <div *ngIf="!resumeFile" class="drop-prompt">
+            <div class="drop-icon"><i class="fas fa-file-upload" style="font-size:36px; color:#94a3b8"></i></div>
+            <p><strong>Drag & drop</strong> your resume or
+              <label class="browse-label">browse<input type="file" accept=".pdf,.doc,.docx" (change)="onFileSelect($event)" hidden></label>
+            </p>
+            <small>PDF, DOC, DOCX · Max 5MB · <strong style="color:#2563eb">AI will auto-fill the form</strong></small>
+          </div>
+
+          <!-- File uploaded -->
+          <div *ngIf="resumeFile" class="file-info">
+            <div class="file-icon">
+              <i class="fas" [ngClass]="resumeFileName.endsWith('.pdf') ? 'fa-file-pdf' : 'fa-file-word'"
+                 style="font-size:28px" [style.color]="resumeFileName.endsWith('.pdf') ? '#ef4444' : '#2563eb'"></i>
+            </div>
+            <div class="file-details">
+              <span class="file-name">{{ resumeFileName }}</span>
+              <small *ngIf="isParsing" class="parse-state parsing">
+                <i class="fas fa-spinner fa-spin"></i>&nbsp; AI is reading your resume…
+              </small>
+              <small *ngIf="parseSuccess && !isParsing" class="parse-state success">
+                <i class="fas fa-check-circle"></i>&nbsp; Resume parsed — form auto-filled!
+              </small>
+              <small *ngIf="parseError && !isParsing" class="parse-state error">
+                <i class="fas fa-exclamation-triangle"></i>&nbsp; {{ parseError }}
+              </small>
+            </div>
+            <button type="button" class="remove-file" (click)="removeResume()" [disabled]="isParsing">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Re-parse button shown after error -->
+        <button type="button" class="btn-reparse" *ngIf="resumeFile && parseError && !isParsing"
+                (click)="parseResumeWithAI()">
+          <i class="fas fa-redo"></i> Retry AI Parsing
+        </button>
+
+        <small class="error-text" *ngIf="errors['resume']">
+          <i class="fas fa-exclamation-circle" style="margin-right:6px"></i>{{ errors['resume'] }}
+        </small>
+      </div>
+
+      <!-- ═══ Section: Personal Information ══════════════════  -->
+      <div class="form-section">
+        <h4 class="section-title"><i class="fas fa-user"></i> Personal Information</h4>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Name <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="form.first_name" name="first_name"
+                   class="form-input" [class.input-error]="errors['first_name']" placeholder="John">
+            <small class="error-text" *ngIf="errors['first_name']">{{ errors['first_name'] }}</small>
+          </div>
+          <div class="form-group">
+            <label>Last Name <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="form.last_name" name="last_name"
+                   class="form-input" [class.input-error]="errors['last_name']" placeholder="Doe">
+            <small class="error-text" *ngIf="errors['last_name']">{{ errors['last_name'] }}</small>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Email <span class="req">*</span></label>
+            <input type="email" [(ngModel)]="form.email" name="email"
+                   class="form-input" [class.input-error]="errors['email']" placeholder="john@example.com">
+            <small class="error-text" *ngIf="errors['email']">{{ errors['email'] }}</small>
+          </div>
+          <div class="form-group">
+            <label>Phone <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="form.phone" name="phone"
+                   class="form-input" [class.input-error]="errors['phone']" placeholder="+91 9876543210">
+            <small class="error-text" *ngIf="errors['phone']">{{ errors['phone'] }}</small>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Total Experience (years) <span class="req">*</span></label>
+            <input type="number" [(ngModel)]="form.experience_years" name="experience_years"
+                   class="form-input" [class.input-error]="errors['experience_years']"
+                   min="0" max="60" placeholder="3">
+            <small class="error-text" *ngIf="errors['experience_years']">{{ errors['experience_years'] }}</small>
+          </div>
+          <div class="form-group">
+            <label>Current Location <span class="req">*</span></label>
+            <input type="text" [(ngModel)]="form.location" name="location"
+                   class="form-input" [class.input-error]="errors['location']" placeholder="Bengaluru, India">
+            <small class="error-text" *ngIf="errors['location']">{{ errors['location'] }}</small>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>LinkedIn Profile</label>
+            <input type="url" [(ngModel)]="form.linkedin_url" name="linkedin_url"
+                   class="form-input" placeholder="https://linkedin.com/in/johndoe">
+          </div>
+          <div class="form-group">
+            <label>Highest Qualification</label>
+            <select [(ngModel)]="form.highest_qualification" name="highest_qualification" class="form-input">
+              <option value="">-- Select --</option>
+              <option value="10th">10th</option>
+              <option value="12th">12th / Intermediate</option>
+              <option value="Diploma">Diploma</option>
+              <option value="BTech">BTech / BE</option>
+              <option value="BSc">BSc</option>
+              <option value="BCA">BCA</option>
+              <option value="BCom">BCom</option>
+              <option value="BA">BA</option>
+              <option value="MTech">MTech / ME</option>
+              <option value="MSc">MSc</option>
+              <option value="MCA">MCA</option>
+              <option value="MBA">MBA</option>
+              <option value="PhD">PhD / Doctorate</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Section: Education ═══════════════════════════════  -->
+      <div class="form-section">
+        <div class="section-header-row">
+          <h4 class="section-title"><i class="fas fa-graduation-cap"></i> Education <span class="req">*</span></h4>
+          <button type="button" class="btn-add-entry" (click)="addEducation()">
+            <i class="fas fa-plus"></i> Add Education
+          </button>
+        </div>
+        <small class="error-text section-error" *ngIf="errors['education']">{{ errors['education'] }}</small>
+
+        <div class="entry-card" *ngFor="let edu of educations; let i = index; let first = first">
+          <div class="entry-header">
+            <span class="entry-number">Education {{ i + 1 }}</span>
+            <button type="button" class="btn-remove-entry" (click)="removeEducation(i)" *ngIf="!first || educations.length > 1">
+              <i class="fas fa-trash-alt"></i> Remove
+            </button>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Degree</label>
+              <input type="text" [(ngModel)]="edu.degree" [name]="'edu_degree_'+i" class="form-input"
+                     placeholder="e.g. BTech, MTech, PhD, MBA">
+            </div>
+            <div class="form-group">
+              <label>Field of Study</label>
+              <input type="text" [(ngModel)]="edu.field_of_study" [name]="'edu_field_'+i" class="form-input"
+                     placeholder="e.g. Computer Science">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Institution</label>
+            <input type="text" [(ngModel)]="edu.institution" [name]="'edu_institution_'+i" class="form-input"
+                   placeholder="e.g. IIT Delhi">
+          </div>
+          <div class="form-row form-row-3col">
+            <div class="form-group">
+              <label>Start Year</label>
+              <input type="text" [(ngModel)]="edu.start_year" [name]="'edu_start_'+i" class="form-input"
+                     placeholder="2018" maxlength="4">
+            </div>
+            <div class="form-group">
+              <label>End Year</label>
+              <input type="text" [(ngModel)]="edu.end_year" [name]="'edu_end_'+i" class="form-input"
+                     placeholder="2022" maxlength="4">
+            </div>
+            <div class="form-group">
+              <label>Grade / CGPA</label>
+              <input type="text" [(ngModel)]="edu.grade" [name]="'edu_grade_'+i" class="form-input"
+                     placeholder="8.5 CGPA / 85%">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Section: Work Experience ═════════════════════════  -->
+      <div class="form-section">
+        <div class="section-header-row">
+          <h4 class="section-title"><i class="fas fa-briefcase"></i> Work Experience</h4>
+          <button type="button" class="btn-add-entry" (click)="addExperience()">
+            <i class="fas fa-plus"></i> Add Experience
+          </button>
+        </div>
+
+        <div class="entry-card" *ngFor="let exp of experiences; let i = index; let first = first">
+          <div class="entry-header">
+            <span class="entry-number">
+              Experience {{ i + 1 }}
+              <span class="current-badge" *ngIf="exp.is_current">Current</span>
+            </span>
+            <button type="button" class="btn-remove-entry" (click)="removeExperience(i)" *ngIf="!first || experiences.length > 1">
+              <i class="fas fa-trash-alt"></i> Remove
+            </button>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Company</label>
+              <input type="text" [(ngModel)]="exp.company" [name]="'exp_company_'+i" class="form-input"
+                     placeholder="e.g. TCS, Infosys, Google">
+            </div>
+            <div class="form-group">
+              <label>Role / Designation</label>
+              <input type="text" [(ngModel)]="exp.role" [name]="'exp_role_'+i" class="form-input"
+                     placeholder="e.g. Senior Software Engineer">
+            </div>
+          </div>
+          <div class="form-row form-row-3col">
+            <div class="form-group">
+              <label>Start Date</label>
+              <input type="month" [(ngModel)]="exp.start_date" [name]="'exp_start_'+i" class="form-input">
+            </div>
+            <div class="form-group">
+              <label>End Date</label>
+              <input type="month" [(ngModel)]="exp.end_date" [name]="'exp_end_'+i" class="form-input"
+                     [disabled]="exp.is_current" [placeholder]="exp.is_current ? 'Present' : ''">
+            </div>
+            <div class="form-group checkbox-group">
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="exp.is_current" [name]="'exp_current_'+i">
+                <span>Currently Working</span>
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <input type="text" [(ngModel)]="exp.description" [name]="'exp_desc_'+i" class="form-input"
+                   placeholder="Brief role description">
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Section: Internships ═════════════════════════════  -->
+      <div class="form-section">
+        <div class="section-header-row">
+          <h4 class="section-title"><i class="fas fa-user-graduate"></i> Internships</h4>
+          <button type="button" class="btn-add-entry" (click)="addInternship()">
+            <i class="fas fa-plus"></i> Add Internship
+          </button>
+        </div>
+        <p class="section-hint" *ngIf="internships.length === 0">No internships added. Click the button above to add one.</p>
+
+        <div class="entry-card" *ngFor="let intern of internships; let i = index">
+          <div class="entry-header">
+            <span class="entry-number">Internship {{ i + 1 }}</span>
+            <button type="button" class="btn-remove-entry" (click)="removeInternship(i)">
+              <i class="fas fa-trash-alt"></i> Remove
+            </button>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Company</label>
+              <input type="text" [(ngModel)]="intern.company" [name]="'intern_company_'+i" class="form-input"
+                     placeholder="e.g. Microsoft">
+            </div>
+            <div class="form-group">
+              <label>Role</label>
+              <input type="text" [(ngModel)]="intern.role" [name]="'intern_role_'+i" class="form-input"
+                     placeholder="e.g. Software Intern">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Duration</label>
+              <input type="text" [(ngModel)]="intern.duration" [name]="'intern_duration_'+i" class="form-input"
+                     placeholder="e.g. 3 months, Jan-Mar 2023">
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <input type="text" [(ngModel)]="intern.description" [name]="'intern_desc_'+i" class="form-input"
+                     placeholder="Brief description">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Section: Projects ════════════════════════════════  -->
+      <div class="form-section">
+        <div class="section-header-row">
+          <h4 class="section-title"><i class="fas fa-code"></i> Projects</h4>
+          <button type="button" class="btn-add-entry" (click)="addProject()">
+            <i class="fas fa-plus"></i> Add Project
+          </button>
+        </div>
+        <p class="section-hint" *ngIf="projects.length === 0">No projects added. Click the button above to add one.</p>
+
+        <div class="entry-card" *ngFor="let proj of projects; let i = index">
+          <div class="entry-header">
+            <span class="entry-number">Project {{ i + 1 }}</span>
+            <button type="button" class="btn-remove-entry" (click)="removeProject(i)">
+              <i class="fas fa-trash-alt"></i> Remove
+            </button>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Project Title</label>
+              <input type="text" [(ngModel)]="proj.title" [name]="'proj_title_'+i" class="form-input"
+                     placeholder="e.g. E-Commerce Platform">
+            </div>
+            <div class="form-group">
+              <label>Technologies</label>
+              <input type="text" [(ngModel)]="proj.technologies" [name]="'proj_tech_'+i" class="form-input"
+                     placeholder="e.g. Angular, Node.js, MongoDB">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <input type="text" [(ngModel)]="proj.description" [name]="'proj_desc_'+i" class="form-input"
+                   placeholder="Brief project description">
+          </div>
+          <div class="form-group">
+            <label>Project URL</label>
+            <input type="url" [(ngModel)]="proj.url" [name]="'proj_url_'+i" class="form-input"
+                   placeholder="https://github.com/user/project">
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Section: Certifications ══════════════════════════  -->
+      <div class="form-section">
+        <div class="section-header-row">
+          <h4 class="section-title"><i class="fas fa-certificate"></i> Certifications</h4>
+          <button type="button" class="btn-add-entry" (click)="addCertification()">
+            <i class="fas fa-plus"></i> Add Certification
+          </button>
+        </div>
+        <p class="section-hint" *ngIf="certifications.length === 0">No certifications added. Click the button above to add one.</p>
+
+        <div class="entry-card" *ngFor="let cert of certifications; let i = index">
+          <div class="entry-header">
+            <span class="entry-number">Certification {{ i + 1 }}</span>
+            <button type="button" class="btn-remove-entry" (click)="removeCertification(i)">
+              <i class="fas fa-trash-alt"></i> Remove
+            </button>
+          </div>
+          <div class="form-row form-row-3col">
+            <div class="form-group">
+              <label>Certification Name</label>
+              <input type="text" [(ngModel)]="cert.name" [name]="'cert_name_'+i" class="form-input"
+                     placeholder="e.g. AWS Solutions Architect">
+            </div>
+            <div class="form-group">
+              <label>Issuing Organization</label>
+              <input type="text" [(ngModel)]="cert.issuing_org" [name]="'cert_org_'+i" class="form-input"
+                     placeholder="e.g. Amazon Web Services">
+            </div>
+            <div class="form-group">
+              <label>Year</label>
+              <input type="text" [(ngModel)]="cert.year" [name]="'cert_year_'+i" class="form-input"
+                     placeholder="2023" maxlength="4">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Section: Skills ════════════════════════════════  -->
+      <div class="form-section">
+        <h4 class="section-title"><i class="fas fa-bullseye"></i> Your Skills</h4>
+
+        <p class="section-hint" *ngIf="jobSkills.length > 0">
+          This role requires: <strong>{{ requiredSkillsText }}</strong>
+        </p>
+
+        <div class="skills-list" *ngIf="selectedSkills.length > 0">
+          <div class="skill-chip candidate" *ngFor="let s of selectedSkills; let i = index">
+            <span>{{ s.skill_name }}</span>
+            <small>{{ s.experience_years }} yr{{ +s.experience_years !== 1 ? 's' : '' }}</small>
+            <button type="button" class="chip-remove" (click)="removeSkill(i)">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="add-skill-row">
+          <select [(ngModel)]="skillToAdd" name="skillToAdd" class="form-input" style="flex:2">
+            <option value="">-- Select Skill --</option>
+            <option *ngFor="let sk of availableSkills" [value]="sk.skill_id">{{ sk.skill_name }}</option>
+          </select>
+          <input type="number" [(ngModel)]="skillExpToAdd" name="skillExpToAdd"
+                 class="form-input" style="flex:0.7" min="0" max="30" placeholder="Yrs">
+          <button type="button" class="btn-add-skill" [disabled]="!skillToAdd" (click)="addSkill()">
+            + Add
+          </button>
+        </div>
+      </div>
+
+      <!-- ═══ Section: Additional Information ══════════════════  -->
+      <div class="form-section">
+        <h4 class="section-title"><i class="fas fa-info-circle"></i> Additional Information</h4>
+
+        <div class="form-group">
+          <label>Professional Summary</label>
+          <textarea [(ngModel)]="form.summary" name="summary"
+                    class="form-input" rows="3"
+                    placeholder="Brief 2-3 sentence professional summary..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Cover Letter / Notes</label>
+          <textarea [(ngModel)]="form.cover_letter" name="cover_letter"
+                    class="form-input" rows="4"
+                    placeholder="Tell us why you're a great fit for this role..."></textarea>
+        </div>
+
+        <div class="form-row form-row-3col">
+          <div class="form-group">
+            <label>Current Salary</label>
+            <input type="text" [(ngModel)]="form.current_salary" name="current_salary"
+                   class="form-input" placeholder="e.g. 8 LPA">
+          </div>
+          <div class="form-group">
+            <label>Expected Salary</label>
+            <input type="text" [(ngModel)]="form.expected_salary" name="expected_salary"
+                   class="form-input" placeholder="e.g. 12 LPA">
+          </div>
+          <div class="form-group">
+            <label>Notice Period</label>
+            <select [(ngModel)]="form.notice_period" name="notice_period" class="form-input">
+              <option value="">-- Select --</option>
+              <option value="Immediate">Immediate</option>
+              <option value="15 days">15 days</option>
+              <option value="1 month">1 month</option>
+              <option value="2 months">2 months</option>
+              <option value="3 months">3 months</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row form-row-3col">
+          <div class="form-group">
+            <label>Portfolio URL</label>
+            <input type="url" [(ngModel)]="form.portfolio_url" name="portfolio_url"
+                   class="form-input" placeholder="https://yourportfolio.com">
+          </div>
+          <div class="form-group">
+            <label>GitHub URL</label>
+            <input type="url" [(ngModel)]="form.github_url" name="github_url"
+                   class="form-input" placeholder="https://github.com/username">
+          </div>
+          <div class="form-group">
+            <label>Available Joining Date</label>
+            <input type="date" [(ngModel)]="form.available_joining_date" name="available_joining_date"
+                   class="form-input">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="form.willing_to_relocate" name="willing_to_relocate">
+              <span>Willing to Relocate</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label>How did you hear about this?</label>
+            <select [(ngModel)]="form.source" name="source" class="form-input">
+              <option value="Career Portal">Career Portal</option>
+              <option value="LinkedIn">LinkedIn</option>
+              <option value="Indeed">Indeed</option>
+              <option value="Referral">Referral</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Actions ══════════════════════════════════════  -->
+      <div class="form-actions">
+        <button type="button" class="btn-cancel" (click)="goBack()">Cancel</button>
+        <button type="submit" class="btn-submit" [disabled]="isSubmitting || isParsing">
+          <ng-container *ngIf="!isSubmitting">
+            Submit Application <i class="fas fa-paper-plane" style="margin-left:6px"></i>
+          </ng-container>
+          <ng-container *ngIf="isSubmitting">
+            Submitting... <i class="fas fa-spinner fa-spin" style="margin-left:6px"></i>
+          </ng-container>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast-notification" *ngIf="showToastFlag"
+       [class.toast-success]="toastType === 'success'"
+       [class.toast-error]="toastType === 'error'">
+    <i class="fas" [ngClass]="toastType === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'"
+       style="margin-right:8px"></i>
+    <span>{{ toastMessage }}</span>
+  </div>
+
+</div>

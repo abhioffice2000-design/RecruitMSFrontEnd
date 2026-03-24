@@ -1,0 +1,18 @@
+<div class="header-container">
+  <a routerLink="/home" class="header-brand" *ngIf="showLogo" aria-label="Home">
+    <img
+      src="assets/images/adnatelogo.png"
+      alt="Adnate IT Solutions"
+      class="header-logo"
+      width="160"
+      height="42"
+    />
+  </a>
+  <div class="header-brand header-brand--placeholder" *ngIf="!showLogo" aria-hidden="true"></div>
+
+  <div class="header-actions" *ngIf="showUser">
+    <div class="user-profile" aria-label="Account">
+      <img [src]="user.avatar" [alt]="" class="user-avatar" role="presentation" />
+    </div>
+  </div>
+</div>

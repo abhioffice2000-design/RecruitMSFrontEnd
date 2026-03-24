@@ -1,0 +1,120 @@
+<div
+  class="dashboard-layout"
+  [class.mobile-nav-open]="mobileNavOpen"
+  [class.sidebar-collapsed]="sidebarCollapsed"
+>
+  <div
+    class="mobile-nav-backdrop"
+    *ngIf="mobileNavOpen"
+    (click)="mobileNavOpen = false"
+    aria-hidden="true"
+  ></div>
+  <button
+    type="button"
+    class="mobile-menu-btn"
+    (click)="mobileNavOpen = !mobileNavOpen"
+    aria-label="Open navigation menu"
+  >
+    <i class="fas fa-bars" aria-hidden="true"></i>
+  </button>
+  <aside class="sidebar">
+    <div class="logo">
+      <img
+        src="assets/images/adnatelogo.png"
+        alt="Adnate IT Solutions"
+        class="logo-img"
+      />
+    </div>
+    
+    <nav class="nav-menu">
+      <a
+        routerLink="dashboard"
+        routerLinkActive="active"
+        class="nav-item"
+        (click)="mobileNavOpen = false"
+        [attr.title]="sidebarCollapsed ? 'Dashboard' : null"
+      >
+        <span class="icon"><i class="fas fa-th-large"></i></span>
+        <span class="nav-label">Dashboard</span>
+      </a>
+      <a
+        routerLink="inbox"
+        routerLinkActive="active"
+        class="nav-item"
+        (click)="mobileNavOpen = false"
+        [attr.title]="sidebarCollapsed ? 'Inbox' : null"
+      >
+        <span class="icon"><i class="fas fa-envelope"></i></span>
+        <span class="nav-label">Inbox</span>
+      </a>
+      <a
+        routerLink="calendar"
+        routerLinkActive="active"
+        class="nav-item"
+        (click)="mobileNavOpen = false"
+        [attr.title]="sidebarCollapsed ? 'Calendar' : null"
+      >
+        <span class="icon"><i class="fas fa-calendar-alt"></i></span>
+        <span class="nav-label">Calendar</span>
+      </a>
+      <a
+        routerLink="jobs"
+        routerLinkActive="active"
+        class="nav-item"
+        (click)="mobileNavOpen = false"
+        [attr.title]="sidebarCollapsed ? 'Jobs' : null"
+      >
+        <span class="icon"><i class="fas fa-briefcase"></i></span>
+        <span class="nav-label">Jobs</span>
+      </a>
+      <a
+        routerLink="candidates"
+        routerLinkActive="active"
+        class="nav-item"
+        (click)="mobileNavOpen = false"
+        [attr.title]="sidebarCollapsed ? 'Candidates' : null"
+      >
+        <span class="icon"><i class="fas fa-user-friends"></i></span>
+        <span class="nav-label">Candidates</span>
+      </a>
+      <a
+        routerLink="offers"
+        routerLinkActive="active"
+        class="nav-item"
+        (click)="mobileNavOpen = false"
+        [attr.title]="sidebarCollapsed ? 'Offers' : null"
+      >
+        <span class="icon"><i class="fas fa-handshake"></i></span>
+        <span class="nav-label">Offers</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-logout">
+      <div class="app-sidebar-actions app-sidebar-actions--padded">
+        <app-theme-toggle [compact]="sidebarCollapsed"></app-theme-toggle>
+        <button
+          type="button"
+          class="sidebar-collapse-btn"
+          (click)="toggleSidebar()"
+          [title]="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        >
+          <i [class]="sidebarCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'" aria-hidden="true"></i>
+          <span class="nav-label">Collapse</span>
+        </button>
+        <button type="button" class="app-btn-logout" (click)="logout()">
+          <i class="fas fa-sign-out-alt" aria-hidden="true"></i>
+          <span class="nav-label">Logout</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content hr-main">
+    <div class="hr-top-bar">
+      <app-header></app-header>
+    </div>
+    <div class="hr-outlet-wrap">
+      <router-outlet></router-outlet>
+    </div>
+  </main>
+</div>

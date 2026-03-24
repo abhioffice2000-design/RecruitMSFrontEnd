@@ -1,0 +1,48 @@
+<div class="applications-page animate-fade-in">
+  <div class="page-header">
+    <h1>My Applications</h1>
+    <p>Track and manage your job applications</p>
+  </div>
+
+  <div class="filter-tabs">
+    <button *ngFor="let f of filters" class="filter-tab" [class.active]="activeFilter === f" (click)="filterBy(f)">
+      {{ f }}
+    </button>
+  </div>
+
+  <div class="app-list">
+    <div *ngFor="let app of filteredApps; let i = index" class="app-card card card-hover" [style.animation-delay]="i * 0.06 + 's'">
+      <div class="app-card-left">
+        <div class="app-status-icon" [ngClass]="'status-' + app.status.toLowerCase()">
+          <i [ngClass]="getStatusIcon(app.status)"></i>
+        </div>
+        <div class="app-info">
+          <h3>{{ app.jobTitle }}</h3>
+          <p class="app-company">{{ app.company }} &middot; {{ app.location }}</p>
+          <div class="app-meta">
+            <span class="badge" [ngClass]="'badge-' + app.status.toLowerCase()">{{ app.status }}</span>
+            <span class="app-date"><i class="fa-regular fa-calendar"></i> Applied {{ app.appliedDate }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="app-card-right">
+        <div class="recruiter-msg" *ngIf="app.recruiterMessage">
+          <span class="msg-label"><i class="fa-solid fa-comment-dots"></i> Recruiter Message</span>
+          <p>{{ app.recruiterMessage }}</p>
+        </div>
+        <div class="interview-info" *ngIf="app.interviewDate">
+          <span class="interview-badge">
+            <i class="fa-solid fa-calendar-check"></i> Interview: {{ app.interviewDate }} at {{ app.interviewTime }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="filteredApps.length === 0" class="empty-state card">
+    <i class="fa-solid fa-clipboard-list empty-icon"></i>
+    <h3>No applications found</h3>
+    <p>You haven't applied to any jobs with this status yet.</p>
+    <a class="btn btn-primary" routerLink="/jobs"><i class="fa-solid fa-magnifying-glass"></i> Browse Jobs</a>
+  </div>
+</div>

@@ -1,0 +1,86 @@
+/* ═══ Global responsive foundation — RMS ═══ */
+
+:root {
+  --r-space-page: clamp(0.75rem, 3vw, 1.75rem);
+  --r-space-card: clamp(0.875rem, 2.5vw, 1.25rem);
+  --r-max-content: min(100%, 1280px);
+  --r-header-offset: 0px;
+}
+
+html {
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  overflow-x: clip;
+  max-width: 100vw;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Prevent flex/grid children from forcing horizontal overflow */
+.min-w-0 {
+  min-width: 0;
+}
+
+/* Shared cards / panels */
+.card {
+  padding: var(--r-space-card) clamp(1rem, 3vw, 1.5rem);
+  max-width: 100%;
+}
+
+.glass-panel {
+  max-width: 100%;
+}
+
+.app-page-shell {
+  width: 100%;
+  max-width: var(--r-max-content);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--r-space-page);
+  padding-right: var(--r-space-page);
+  box-sizing: border-box;
+}
+
+/* Tables: smooth horizontal scroll on touch devices */
+.table-container {
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+.enterprise-table {
+  font-size: clamp(0.75rem, 2.4vw, 0.875rem);
+}
+
+@media (max-width: 640px) {
+  .enterprise-table th,
+  .enterprise-table td {
+    padding: 0.5rem 0.625rem;
+  }
+}
+
+/* Grid utilities: extra-small breakpoint */
+@media (max-width: 480px) {
+  .grid {
+    gap: 0.875rem;
+  }
+}
+
+/* Page containers often used in routed views */
+.page-container,
+.page-wrap,
+[class*='page-container'] {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Modals / overlays: avoid wider than viewport */
+@media (max-width: 640px) {
+  .modal-overlay .modal-card {
+    max-width: calc(100vw - 1.5rem) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+}

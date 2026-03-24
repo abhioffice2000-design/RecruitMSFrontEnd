@@ -1,0 +1,105 @@
+<div class="dashboard-content">
+  <div class="header">
+    <h2>Dashboard</h2>
+  </div>
+  
+  <div class="controls">
+    <div class="date-range">&lt; Mar 1, 2023 - Mar 7, 2023 &gt;</div>
+    <select class="interval">
+      <option>Weekly</option>
+    </select>
+    <button class="export-btn"><span>📥</span> Export Report</button>
+  </div>
+
+  <div class="stats-cards">
+    <div class="card">
+      <div class="label">Total Employees</div>
+      <div class="value-row">
+        <span class="value">29 833</span>
+        <span class="badge green">↗ 20%</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">Job View</div>
+      <div class="value-row">
+        <span class="value">18 073</span>
+        <span class="badge green">↗ 31%</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">Job Applied</div>
+      <div class="value-row">
+        <span class="value">11 982</span>
+        <span class="badge green">↗ 13%</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">Average Salary</div>
+      <div class="value-row">
+        <span class="value">$ 3775</span>
+        <span class="badge red">↘ 9%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="middle-section">
+    <div class="chart-section job-stats">
+      <h3>Job Statistics</h3>
+      <div class="placeholder-chart" style="height: 200px; background: #fafafa; border-radius: 8px; border: 1px dashed #ccc; display:flex; align-items:center; justify-content:center;">
+         Chart Placeholder
+      </div>
+    </div>
+    <div class="chart-section work-format">
+      <h3>Working Format</h3>
+      <div class="pie-chart-placeholder">
+         <div class="circle">
+           <span>Total</span>
+           <strong>322</strong>
+         </div>
+         <div class="legend">
+           <span>Onsite</span><span>Remote</span><span>Hybrid</span>
+         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="employee-status">
+    <h3>Employee Status</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Job Title</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <div class="emp-name"><img src="https://via.placeholder.com/30"> Steven Bing</div>
+          </td>
+          <td>steven.bing@example.com</td>
+          <td>Designer</td>
+          <td><span class="tag onboarding">Onboarding</span></td>
+        </tr>
+        <tr>
+          <td>
+            <div class="emp-name"><img src="https://via.placeholder.com/30"> Wade Warren</div>
+          </td>
+          <td>wwarren@example.com</td>
+          <td>Frontend Developer</td>
+          <td><span class="tag declined">Declined</span></td>
+        </tr>
+        <tr>
+          <td>
+            <div class="emp-name"><img src="https://via.placeholder.com/30"> Jane Cooper</div>
+          </td>
+          <td>janecooper22@example.com</td>
+          <td>User</td>
+          <td><span class="tag active">Active</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

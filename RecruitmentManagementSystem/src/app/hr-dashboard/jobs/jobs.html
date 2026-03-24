@@ -1,0 +1,404 @@
+<div class="dashboard-content">
+  <div class="header">
+    <h2>Job Requisitions</h2>
+  </div>
+
+  <!-- ===== JOBS LIST VIEW ===== -->
+  <div class="jobs-container" *ngIf="!showForm">
+    <div class="jobs-header">
+      <h3>All Requisitions</h3>
+      <div class="controls">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" placeholder="Search by title, ID, department..."
+                 class="search-input" [(ngModel)]="searchTerm">
+        </div>
+        <select class="filter-select" [(ngModel)]="statusFilter">
+          <option value="ALL">All Statuses</option>
+          <option value="PENDING">Pending Approval</option>
+          <option value="APPROVED">Approved</option>
+          <option value="REJECTED">Rejected</option>
+          <option value="CLOSED">Closed</option>
+        </select>
+        <button class="btn-primary" (click)="openForm()">
+          <span class="plus-icon">+</span>
+          New Requisition
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading-state" *ngIf="isLoading">
+      <div class="spinner"></div>
+      <p>Loading requisitions...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div class="empty-state" *ngIf="!isLoading && filteredJobs.length === 0">
+      <div class="empty-icon">📋</div>
+      <h4>No Requisitions Found</h4>
+      <p *ngIf="jobs.length === 0">Create your first job requisition to get started.</p>
+      <p *ngIf="jobs.length > 0">No requisitions match your current filters.</p>
+    </div>
+
+    <!-- Jobs Table -->
+    <div class="table-wrap" *ngIf="!isLoading && filteredJobs.length > 0">
+      <table class="jobs-table">
+        <thead>
+          <tr>
+            <th>Req ID</th>
+            <th>Job Title</th>
+            <th>Department</th>
+            <th>Positions</th>
+            <th>Salary Range</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let job of filteredJobs" class="job-row">
+            <td>
+              <span class="req-id-badge">{{ job.requisition_id }}</span>
+            </td>
+            <td>
+              <div class="job-title-cell">
+                <span class="title">{{ job.title }}</span>
+                <span class="source" *ngIf="job.posting_source">{{ job.posting_source }}</span>
+              </div>
+            </td>
+            <td>{{ job.department_name || job.department_id }}</td>
+            <td class="text-center">{{ job.open_positions }}</td>
+            <td>
+              <span *ngIf="job.salary_min && job.salary_max">
+                {{ job.salary_currency }} {{ job.salary_min }} - {{ job.salary_max }}
+              </span>
+              <span *ngIf="!job.salary_min && !job.salary_max" class="text-muted">Not specified</span>
+            </td>
+            <td>
+              <span class="status-badge" [ngClass]="getStatusClass(job.status)">
+                {{ getStatusLabel(job.status) }}
+              </span>
+            </td>
+            <td class="text-muted">{{ formatDate(job.created_at) }}</td>
+            <td>
+              <div class="action-buttons">
+                <button class="btn-view" (click)="viewDetails(job)">View Details</button>
+                <button class="btn-reject-sm" type="button"
+                        *ngIf="job.status === 'APPROVED'"
+                        (click)="openHrCloseModal(job); $event.stopPropagation()"
+                        title="Close requisition after hiring is complete or requirement is withdrawn">
+                  Close requisition
+                </button>
+                <button class="btn-edit" *ngIf="job.status === 'REJECTED'" (click)="editJob(job)">
+                  Edit & Resubmit
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="summary-bar" *ngIf="!isLoading && jobs.length > 0">
+      <span>Showing {{ filteredJobs.length }} of {{ jobs.length }} requisitions</span>
+    </div>
+  </div>
+
+  <!-- ===== CREATE REQUISITION FORM ===== -->
+  <div class="form-container" *ngIf="showForm">
+    <div class="form-header-bar">
+      <button class="btn-back" (click)="closeForm()">← Back to Requisitions</button>
+      <h3>{{ isEditing ? '✏️ Edit Job Requisition' : 'Create New Job Requisition' }}</h3>
+      <p class="form-subtitle" *ngIf="!isEditing">Fill in the details below. The requisition will be sent for leadership approval automatically.</p>
+      <p class="form-subtitle" *ngIf="isEditing">Edit the rejected requisition and resubmit for approval. A new BPM task will be triggered.</p>
+    </div>
+
+    <form class="requisition-form" (ngSubmit)="submitJob()">
+      <!-- Section: Basic Info -->
+      <div class="form-section">
+        <h4 class="section-title">📋 Basic Information</h4>
+        <div class="form-group">
+          <label>Job Title <span class="required">*</span></label>
+          <input type="text" [(ngModel)]="form.title" name="title"
+                 class="form-input" [class.input-error]="errors['title']"
+                 placeholder="e.g. Senior Frontend Developer">
+          <small class="error-text" *ngIf="errors['title']">{{ errors['title'] }}</small>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Department <span class="required">*</span></label>
+            <select [(ngModel)]="form.department_id" name="department_id"
+                    class="form-input" [class.input-error]="errors['department_id']">
+              <option value="">-- Select Department --</option>
+              <option *ngFor="let d of departments" [value]="d.department_id">
+                {{ d.department_name }}
+              </option>
+            </select>
+            <small class="error-text" *ngIf="errors['department_id']">{{ errors['department_id'] }}</small>
+          </div>
+          <div class="form-group">
+            <label>Posting Source</label>
+            <select [(ngModel)]="form.posting_source" name="posting_source" class="form-input">
+              <option value="Career Portal">Career Portal</option>
+              <option value="LinkedIn">LinkedIn</option>
+              <option value="Indeed">Indeed</option>
+              <option value="Referral">Referral</option>
+              <option value="Campus">Campus Recruitment</option>
+              <option value="Internal">Internal Posting</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Job Description <span class="required">*</span></label>
+          <textarea [(ngModel)]="form.description" name="description"
+                    class="form-input" [class.input-error]="errors['description']"
+                    rows="5" placeholder="Enter detailed job description, responsibilities, and requirements..."></textarea>
+          <small class="error-text" *ngIf="errors['description']">{{ errors['description'] }}</small>
+          <small class="char-count">{{ form.description.length }} characters</small>
+        </div>
+      </div>
+
+      <!-- Section: Requirements -->
+      <div class="form-section">
+        <h4 class="section-title">📊 Requirements</h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Min Experience (years)</label>
+            <input type="number" [(ngModel)]="form.experience_min" name="experience_min"
+                   class="form-input" min="0" max="50" placeholder="0">
+          </div>
+          <div class="form-group">
+            <label>Max Experience (years)</label>
+            <input type="number" [(ngModel)]="form.experience_max" name="experience_max"
+                   class="form-input" min="0" max="50" placeholder="10">
+          </div>
+          <div class="form-group">
+            <label>Open Positions <span class="required">*</span></label>
+            <input type="number" [(ngModel)]="form.open_positions" name="open_positions"
+                   class="form-input" [class.input-error]="errors['open_positions']"
+                   min="1" max="100" placeholder="1">
+            <small class="error-text" *ngIf="errors['open_positions']">{{ errors['open_positions'] }}</small>
+          </div>
+        </div>
+        <small class="error-text" *ngIf="errors['experience']">{{ errors['experience'] }}</small>
+      </div>
+
+      <!-- Section: Compensation -->
+      <div class="form-section">
+        <h4 class="section-title">💰 Compensation</h4>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Currency</label>
+            <select [(ngModel)]="form.salary_currency" name="salary_currency" class="form-input">
+              <option value="INR">INR</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+              <option value="GBP">GBP</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Min Salary</label>
+            <input type="number" [(ngModel)]="form.salary_min" name="salary_min"
+                   class="form-input" min="0" placeholder="e.g. 500000">
+          </div>
+          <div class="form-group">
+            <label>Max Salary</label>
+            <input type="number" [(ngModel)]="form.salary_max" name="salary_max"
+                   class="form-input" min="0" placeholder="e.g. 1500000">
+          </div>
+        </div>
+        <small class="error-text" *ngIf="errors['salary']">{{ errors['salary'] }}</small>
+      </div>
+
+      <!-- Section: Skills -->
+      <div class="form-section">
+        <h4 class="section-title">🎯 Required Skills</h4>
+        <div class="skills-list" *ngIf="selectedSkills.length > 0">
+          <div class="skill-chip" *ngFor="let s of selectedSkills; let i = index">
+            <span class="skill-name">{{ s.skill_name }}</span>
+            <span class="skill-level">{{ s.required_level }}</span>
+            <button type="button" class="chip-remove" (click)="removeSkill(i)">✕</button>
+          </div>
+        </div>
+        <div class="add-skill-row">
+          <select [(ngModel)]="skillToAdd" name="skillToAdd" class="form-input" style="flex:2">
+            <option value="">-- Select Skill --</option>
+            <option *ngFor="let sk of availableSkills" [value]="sk.skill_id">
+              {{ sk.skill_name }}
+            </option>
+          </select>
+          <select [(ngModel)]="skillLevelToAdd" name="skillLevelToAdd" class="form-input" style="flex:1">
+            <option value="Beginner">Beginner</option>
+            <option value="Intermediate">Intermediate</option>
+            <option value="Advanced">Advanced</option>
+            <option value="Expert">Expert</option>
+          </select>
+          <button type="button" class="btn-add-skill" (click)="addSkill()" [disabled]="!skillToAdd">
+            + Add Skill
+          </button>
+        </div>
+        <small class="hint-text" *ngIf="allSkills.length === 0">
+          No skills found in master data. Ask admin to add skills.
+        </small>
+      </div>
+
+      <!-- Actions -->
+      <div class="form-actions">
+        <button type="button" class="btn-cancel" (click)="closeForm()">Cancel</button>
+        <button type="submit" class="btn-submit" [disabled]="isSubmitting">
+          {{ isSubmitting ? (isEditing ? 'Resubmitting...' : 'Creating...') : (isEditing ? '🔄 Resubmit for Approval' : '🚀 Create & Submit for Approval') }}
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ===== DETAIL MODAL ===== -->
+  <div class="modal-overlay" *ngIf="showDetailModal" (click)="closeDetailModal()">
+    <div class="modal-card detail-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>📋 Requisition Details</h3>
+        <button class="modal-close" (click)="closeDetailModal()">✕</button>
+      </div>
+      <div class="modal-body" *ngIf="selectedJob">
+        <div class="detail-id">
+          <span class="req-id-badge large">{{ selectedJob.requisition_id }}</span>
+          <span class="status-badge" [ngClass]="getStatusClass(selectedJob.status)">
+            {{ getStatusLabel(selectedJob.status) }}
+          </span>
+        </div>
+        <h2 class="detail-title">{{ selectedJob.title }}</h2>
+
+        <!-- Approval workflow (manager + BPM + outcome) -->
+        <div class="approval-stepper" *ngIf="selectedJob">
+          <h4 class="stepper-heading"><i class="fas fa-route"></i> Approval workflow</h4>
+          <ol class="stepper-track">
+            <li *ngFor="let step of getRequisitionApprovalSteps(selectedJob); let i = index"
+                class="stepper-step"
+                [class.step-done]="step.state === 'done'"
+                [class.step-current]="step.state === 'current'"
+                [class.step-pending]="step.state === 'pending'"
+                [class.step-error]="step.state === 'error'">
+              <div class="step-marker">{{ i + 1 }}</div>
+              <div class="step-body">
+                <div class="step-title">{{ step.title }}</div>
+                <div class="step-subtitle">{{ step.subtitle }}</div>
+                <div class="step-meta" *ngIf="step.meta">{{ step.meta }}</div>
+              </div>
+            </li>
+          </ol>
+        </div>
+
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="label">Department</span>
+            <span class="value">{{ selectedJob.department_name || selectedJob.department_id }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Open Positions</span>
+            <span class="value">{{ selectedJob.open_positions }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Experience</span>
+            <span class="value">{{ selectedJob.experience_min || '0' }} - {{ selectedJob.experience_max || 'Any' }} years</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Salary Range</span>
+            <span class="value" *ngIf="selectedJob.salary_min">
+              {{ selectedJob.salary_currency }} {{ selectedJob.salary_min }} - {{ selectedJob.salary_max }}
+            </span>
+            <span class="value" *ngIf="!selectedJob.salary_min">Not specified</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Source</span>
+            <span class="value">{{ selectedJob.posting_source || '-' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="label">Created</span>
+            <span class="value">{{ formatDate(selectedJob.created_at) }}</span>
+          </div>
+        </div>
+
+        <div class="detail-actions" *ngIf="selectedJob.status === 'APPROVED'" style="margin: 16px 0;">
+          <button type="button" class="btn-reject-sm" (click)="openHrCloseModal(selectedJob)">
+            Close requisition
+          </button>
+        </div>
+
+        <div class="detail-section" *ngIf="selectedJob.status === 'REJECTED' && selectedJob.temp3">
+          <h4>❌ Rejection Reason</h4>
+          <div class="rejection-reason-box">
+            <p>{{ selectedJob.temp3 }}</p>
+          </div>
+        </div>
+
+        <div class="detail-section" *ngIf="hrClosureDetail(selectedJob) as hc">
+          <h4>✅ Formal closure (HR)</h4>
+          <p><strong>Reason:</strong> {{ getHrCloseReasonLabel(hc.code) }}</p>
+          <p *ngIf="hc.notes && hc.notes !== '-'"><strong>Notes:</strong> {{ hc.notes }}</p>
+        </div>
+
+        <div class="detail-section" *ngIf="selectedJob.description">
+          <h4>Description</h4>
+          <p class="description-text">{{ selectedJob.description }}</p>
+        </div>
+
+        <div class="detail-section" *ngIf="selectedJobSkills.length > 0">
+          <h4>Required Skills</h4>
+          <div class="skills-list">
+            <div class="skill-chip readonly" *ngFor="let s of selectedJobSkills">
+              <span class="skill-name">{{ s.skill_name }}</span>
+              <span class="skill-level">{{ s.required_level }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HR Close requisition modal -->
+  <div class="modal-overlay" *ngIf="showHrCloseModal" (click)="cancelHrCloseModal()">
+    <div class="modal-card" (click)="$event.stopPropagation()" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3>Close requisition</h3>
+        <button type="button" class="modal-close" (click)="cancelHrCloseModal()">✕</button>
+      </div>
+      <div class="modal-body" *ngIf="jobPendingClose">
+        <p class="hint" style="margin-bottom: 12px;">
+          Close <strong>{{ jobPendingClose.title }}</strong> when hiring is finished or the role is withdrawn.
+          Notifications will be sent to the requisition owner and HR team.
+        </p>
+        <div class="form-group">
+          <label>Reason <span class="required">*</span></label>
+          <select class="form-input" [(ngModel)]="hrCloseReasonCode">
+            <option value="HIRING_COMPLETE">Hiring complete — position filled</option>
+            <option value="WITHDRAWN">Requirement withdrawn</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Comment <span class="required" *ngIf="hrCloseReasonCode === 'OTHER'">*</span></label>
+          <textarea class="form-input" rows="3" [(ngModel)]="hrCloseComment"
+                    placeholder="Optional notes (required if “Other”)"></textarea>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;">
+          <button type="button" class="btn-cancel" (click)="cancelHrCloseModal()">Cancel</button>
+          <button type="button" class="btn-primary" (click)="confirmHrCloseRequisition()"
+                  [disabled]="isClosing">
+            {{ isClosing ? 'Closing…' : 'Confirm close' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TOAST ===== -->
+  <div class="toast-notification" *ngIf="showToastFlag"
+       [class.toast-success]="toastType === 'success'"
+       [class.toast-error]="toastType === 'error'">
+    <span class="toast-icon">{{ toastType === 'success' ? '✅' : '❌' }}</span>
+    <span class="toast-text">{{ toastMessage }}</span>
+  </div>
+</div>

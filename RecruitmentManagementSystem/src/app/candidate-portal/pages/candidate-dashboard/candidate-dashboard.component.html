@@ -1,0 +1,69 @@
+<div class="dash-wrap animate-fade-in">
+  <div class="page-header">
+    <h1><i class="fas fa-hand-sparkles"></i> Welcome Back</h1>
+    <p>Track your applications and find new opportunities.</p>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card stat-apps">
+      <div class="stat-icon-wrap"><i class="fas fa-file-alt"></i></div>
+      <div class="stat-body">
+        <div class="stat-val">{{ totalApplications }}</div>
+        <div class="stat-label">Total Applications</div>
+      </div>
+    </div>
+    <div class="stat-card stat-active">
+      <div class="stat-icon-wrap"><i class="fas fa-spinner"></i></div>
+      <div class="stat-body">
+        <div class="stat-val">{{ activeApplications }}</div>
+        <div class="stat-label">In Progress</div>
+      </div>
+    </div>
+    <div class="stat-card stat-jobs">
+      <div class="stat-icon-wrap"><i class="fas fa-briefcase"></i></div>
+      <div class="stat-body">
+        <div class="stat-val">{{ openJobs }}</div>
+        <div class="stat-label">Open Positions</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="quick-actions">
+    <button type="button" class="action-btn" (click)="router.navigate(['/candidate/jobs'])">
+      <i class="fas fa-search"></i> Browse Jobs
+    </button>
+    <button type="button" class="action-btn" (click)="router.navigate(['/candidate/applications'])">
+      <i class="fas fa-list-alt"></i> My Applications
+    </button>
+    <button type="button" class="action-btn" (click)="router.navigate(['/candidate/interviews'])">
+      <i class="fas fa-video"></i> My Interviews
+    </button>
+  </div>
+
+  <div class="interviews-cta-banner">
+    <div class="interviews-cta-icon"><i class="fas fa-video"></i></div>
+    <div class="interviews-cta-text">
+      <strong>Video interviews</strong>
+      <span>Open <button type="button" class="inline-nav-link" (click)="router.navigate(['/candidate/interviews'])">My Interviews</button> to see your schedule and use <strong>Join meeting</strong> — the same link HR shares with interviewers.</span>
+    </div>
+  </div>
+
+  <div class="recent-section" *ngIf="recentApps.length > 0">
+    <h3><i class="fas fa-clock"></i> Recent Applications</h3>
+    <div class="recent-list">
+      <div class="recent-card" *ngFor="let app of recentApps">
+        <div class="recent-left">
+          <div class="recent-avatar">{{ app.jobTitle.charAt(0) }}</div>
+          <div>
+            <span class="recent-title">{{ app.jobTitle }}</span>
+            <span class="recent-date">Applied {{ formatDate(app.applied_at) }}</span>
+          </div>
+        </div>
+        <div class="recent-right">
+          <span class="stage-pill"><i class="fas fa-map-signs"></i> {{ app.stageName }}</span>
+          <span class="status-pill" [ngClass]="app.status.toLowerCase()">{{ app.status }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
