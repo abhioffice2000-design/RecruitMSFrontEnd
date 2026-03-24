@@ -1118,6 +1118,75 @@ export class SoapService {
   }
 
   /**
+   * Insert ts_accounts row for internal user (Manager, HR, Interviewer).
+   * Calls $.cordys.ajax directly with dataType 'xml' (matching register.component.ts pattern).
+   * NOTE: candidate_id is intentionally omitted so it stays NULL in DB.
+   * The chk_account_owner constraint requires exactly one of user_id/candidate_id to be NOT NULL.
+   */
+  insertTsAccountForUser(data: {
+    email: string;
+    password_hash: string;
+    user_id: string;
+    account_type: string;
+  }): Promise<any> {
+    if (this.useMockData) return Promise.resolve({ success: true });
+    const escapeXml = (val: unknown): string => {
+      const apos = '&apos;';
+      return String(val ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", apos);
+    };
+    const now = new Date().toISOString();
+    const soapXml = `<SOAP:Envelope xmlns:SOAP="http://schemas.xmlsoap.org/soap/envelope/">
+  <SOAP:Body>
+    <UpdateTs_accounts xmlns="${this.NS}" reply="yes" commandUpdate="no" preserveSpace="no" batchUpdate="no">
+      <tuple>
+        <new>
+          <ts_accounts qAccess="0" qConstraint="0" qInit="0" qValues="">
+            <email>${escapeXml(data.email)}</email>
+            <password_hash>${escapeXml(data.password_hash)}</password_hash>
+            <account_type>${escapeXml(data.account_type)}</account_type>
+            <user_id>${escapeXml(data.user_id)}</user_id>
+            <account_status>active</account_status>
+            <email_verified>false</email_verified>
+            <failed_login_attempts>0</failed_login_attempts>
+            <last_login></last_login>
+            <password_reset_token></password_reset_token>
+            <password_reset_expiry></password_reset_expiry>
+            <created_at>${escapeXml(now)}</created_at>
+            <updated_at>${escapeXml(now)}</updated_at>
+            <temp1></temp1>
+            <temp2></temp2>
+            <temp3></temp3>
+            <temp4></temp4>
+            <temp5></temp5>
+          </ts_accounts>
+        </new>
+      </tuple>
+    </UpdateTs_accounts>
+  </SOAP:Body>
+</SOAP:Envelope>`;
+
+    return new Promise((resolve, reject) => {
+      $.cordys.ajax({
+        method: 'UpdateTs_accounts',
+        namespace: this.NS,
+        data: soapXml,
+        dataType: 'xml',
+      })
+      .done((resp: any) => {
+        this.ngZone.run(() => resolve(resp));
+      })
+      .fail((e1: any, e2: any, e3: any) => {
+        this.ngZone.run(() => reject({ jqXHR: e1, textStatus: e2, errorThrown: e3 }));
+      });
+    });
+  }
+
+  /**
    * Create Cordys org user for candidate SSO (same password as portal; non-blocking if user exists).
    */
   async ensureCandidateCordysUser(

@@ -735,6 +735,34 @@ export class UserManagement implements OnInit {
         created_by: 'admin'
       });
 
+      // Step 3: Insert into ts_accounts table (best-effort, non-blocking)
+      // Get user_id - may not be in insert response, so query by email if needed
+      let userId = dbResult?.user_id || dbResult?.User_id || '';
+      if (!userId) {
+        try {
+          const allManagers = await this.soapService.getAllManagers();
+          const match = allManagers.find((m: any) => (m['email'] || m['Email']) === email);
+          userId = match ? (match['user_id'] || match['User_id'] || '') : '';
+        } catch (e) {
+          console.warn('[UserManagement] Failed to lookup user_id after insert:', e);
+        }
+      }
+      if (userId) {
+        try {
+          await this.soapService.insertTsAccountForUser({
+            email: email,
+            password_hash: password,
+            user_id: userId,
+            account_type: UserRole.MANAGER
+          });
+          console.log('[UserManagement] Manager ts_accounts insert done for userId:', userId);
+        } catch (accErr) {
+          console.error('[UserManagement] ts_accounts insert failed for Manager (non-blocking):', accErr);
+        }
+      } else {
+        console.warn('[UserManagement] Skipped ts_accounts insert: user_id not found');
+      }
+
       // Find department name for local list
       const deptObj = this.dbDepartments.find(d => d['department_id'] === departmentId);
       const departmentName = deptObj ? deptObj['department_name'] : 'Unknown';
@@ -817,6 +845,33 @@ export class UserManagement implements OnInit {
       });
       console.log('[UserManagement] HR DB Result:', dbResult);
 
+      // Step 3: Insert into ts_accounts table (best-effort, non-blocking)
+      let userId = dbResult?.user_id || dbResult?.User_id || '';
+      if (!userId) {
+        try {
+          const allHR = await this.soapService.getAllHR();
+          const match = allHR.find((h: any) => (h['email'] || h['Email']) === email);
+          userId = match ? (match['user_id'] || match['User_id'] || '') : '';
+        } catch (e) {
+          console.warn('[UserManagement] Failed to lookup user_id after insert:', e);
+        }
+      }
+      if (userId) {
+        try {
+          await this.soapService.insertTsAccountForUser({
+            email: email,
+            password_hash: password,
+            user_id: userId,
+            account_type: UserRole.HR
+          });
+          console.log('[UserManagement] HR ts_accounts insert done for userId:', userId);
+        } catch (accErr) {
+          console.error('[UserManagement] ts_accounts insert failed for HR (non-blocking):', accErr);
+        }
+      } else {
+        console.warn('[UserManagement] Skipped ts_accounts insert: user_id not found');
+      }
+
       // Update local UI list
       this.hrMembers.unshift({
         id: dbResult?.user_id || dbResult?.User_id || ('HR-' + Math.floor(Math.random() * 900 + 100)),
@@ -897,6 +952,33 @@ export class UserManagement implements OnInit {
         created_by: 'admin'
       });
       console.log('[UserManagement] Interviewer DB Result:', dbResult);
+
+      // Step 3: Insert into ts_accounts table (best-effort, non-blocking)
+      let userId = dbResult?.user_id || dbResult?.User_id || '';
+      if (!userId) {
+        try {
+          const allInt = await this.soapService.getAllInterviewers();
+          const match = allInt.find((i: any) => (i['email'] || i['Email']) === email);
+          userId = match ? (match['user_id'] || match['User_id'] || '') : '';
+        } catch (e) {
+          console.warn('[UserManagement] Failed to lookup user_id after insert:', e);
+        }
+      }
+      if (userId) {
+        try {
+          await this.soapService.insertTsAccountForUser({
+            email: email,
+            password_hash: password,
+            user_id: userId,
+            account_type: UserRole.INTERVIEWER
+          });
+          console.log('[UserManagement] Interviewer ts_accounts insert done for userId:', userId);
+        } catch (accErr) {
+          console.error('[UserManagement] ts_accounts insert failed for Interviewer (non-blocking):', accErr);
+        }
+      } else {
+        console.warn('[UserManagement] Skipped ts_accounts insert: user_id not found');
+      }
 
       // Update local UI list
       this.interviewers.unshift({
