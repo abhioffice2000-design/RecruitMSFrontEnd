@@ -52,9 +52,14 @@ interface CandidateRow {
     <div class="dashboard-content">
       <div class="header header-with-action">
         <h2>Candidates</h2>
-        <button type="button" class="btn-add-candidate" (click)="showAddCandidateModal = true" title="Add candidate (resume or manual)">
-          <i class="fas fa-user-plus"></i> Add candidate
-        </button>
+        <div class="header-btns">
+          <button type="button" class="btn-refresh" (click)="loadData()" [disabled]="isLoading" title="Refresh candidate data">
+            <i class="fas fa-sync-alt" [class.fa-spin]="isLoading"></i>
+          </button>
+          <button type="button" class="btn-add-candidate" (click)="showAddCandidateModal = true" title="Add candidate (resume or manual)">
+            <i class="fas fa-user-plus"></i> Add candidate
+          </button>
+        </div>
       </div>
 
       <!-- Job Filter Bar -->
@@ -718,6 +723,16 @@ interface CandidateRow {
     .header-with-action {
       display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
       margin-bottom: 4px;
+    }
+    .header-btns {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .btn-refresh {
+      padding: 10px; border-radius: 10px; border: 1px solid #e2e8f0; background: #fff; color: #64748b;
+      cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+      &:hover { background: #f8fafc; color: #2563eb; border-color: #cbd5e1; }
+      &:disabled { opacity: 0.6; cursor: not-allowed; }
     }
     .btn-add-candidate {
       padding: 10px 16px; border-radius: 10px; border: none; background: #2563eb; color: #fff;
@@ -1545,8 +1560,8 @@ export class CandidatesTab implements OnInit {
     // Listen for real-time application updates
     this.notifySub = this.notifyService.notifications$.subscribe(notif => {
       if (notif.type === 'CANDIDATE_APPLIED') {
-        console.log('[Candidates] New candidate applied. Reloading data...');
-        this.loadData();
+        console.log('[Candidates] New candidate applied event received.');
+        // User requested NOT to reload automatically here, toaster will handle notification
       }
     });
 

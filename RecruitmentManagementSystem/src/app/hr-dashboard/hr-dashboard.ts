@@ -65,6 +65,9 @@ export class HrDashboard implements OnInit, OnDestroy {
       case 'LOGOUT':
         message = `User ${notif.data.username} logged out`;
         break;
+      case 'CANDIDATE_APPLIED':
+        message = `New candidate applied: ${notif.data.candidateName || 'Unknown'}`;
+        break;
     }
 
     if (message) {

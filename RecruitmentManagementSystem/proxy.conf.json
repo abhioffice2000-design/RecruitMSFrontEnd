@@ -18,12 +18,12 @@
     "changeOrigin": true
   },
   "/notify": {
-     "target": "http://localhost:3000",
-     "secure": false
+    "target": "http://localhost:3000",
+    "secure": false
   },
   "/socket.io": {
-     "target": "http://localhost:3000",
-     "secure": false,
-     "ws": true
+    "target": "http://localhost:3000",
+    "secure": false,
+    "ws": true
   }
 }

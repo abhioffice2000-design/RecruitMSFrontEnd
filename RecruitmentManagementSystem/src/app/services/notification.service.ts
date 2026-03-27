@@ -12,10 +12,10 @@ export class NotificationService {
 
   constructor(private http: HttpClient) {
     // Initialize socket connection using the proxy
-    this.socket = io({
-      transports: ['websocket', 'polling'], // ensure broad compatibility
-    });
-
+    // this.socket = io('http://localhost:3000', {
+    //   transports: ['websocket', 'polling'], // ensure broad compatibility
+    // });
+    this.socket = io();
     // Handle generic errors
     this.socket.on('connect_error', (err) => {
       console.warn('[NotificationService] Socket.io connect_error:', err.message);
