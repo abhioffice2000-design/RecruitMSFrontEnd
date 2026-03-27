@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, RouterModule } from '@angular/router';
 import {
   CordysService,
   CordysOffer,
@@ -11,7 +11,7 @@ import { forkJoin } from 'rxjs';
 @Component({
   selector: 'app-candidate-offers',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, RouterModule],
   templateUrl: './candidate-offers.component.html',
   styleUrls: ['./candidate-offers.component.scss']
 })
@@ -62,9 +62,10 @@ export class CandidateOffersComponent implements OnInit {
     });
   }
 
-  getJobTitle(requisitionId: string): string {
-    const job = this.jobRequisitions.find(j => j.requisition_id === requisitionId);
-    return job?.job_title || requisitionId || 'Offer';
+  getJobTitle(requisitionId: string | undefined): string {
+    const rid = requisitionId || '';
+    const job = this.jobRequisitions.find(j => j.requisition_id === rid);
+    return job?.job_title || rid || 'Offer';
   }
 
   getSalaryDisplay(offer: CordysOffer): string {

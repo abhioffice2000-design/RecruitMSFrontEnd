@@ -33,6 +33,10 @@ export class NotificationService {
     this.socket.on('candidateApplied', (data) => {
       this.notificationSubject.next({ type: 'CANDIDATE_APPLIED', data });
     });
+
+    this.socket.on('mandatoryDocumentsRequested', (data) => {
+      this.notificationSubject.next({ type: 'MANDATORY_DOCUMENTS_REQUESTED', data });
+    });
   }
 
   /**
@@ -40,7 +44,7 @@ export class NotificationService {
    * @param type Event type ('LOGIN', 'LOGOUT', 'CANDIDATE_APPLIED')
    * @param data Payload to broadcast
    */
-  sendNotification(type: 'LOGIN' | 'LOGOUT' | 'CANDIDATE_APPLIED', data: any) {
+  sendNotification(type: 'LOGIN' | 'LOGOUT' | 'CANDIDATE_APPLIED' | 'MANDATORY_DOCUMENTS_REQUESTED', data: any) {
     console.log(`[NotificationService] Sending ${type} notification via middleware...`);
     this.http.post('/notify', { type, data }).subscribe({
       next: (resp) => console.log(`[NotificationService] ${type} notification broadcasted.`),

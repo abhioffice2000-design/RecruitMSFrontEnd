@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { NotificationService } from '../../services/notification.service';
+import { ToastService } from '../../services/toast.service';
 import { SoapService } from '../../services/soap.service';
 import { buildMailBody } from '../../services/mail-templates';
 import { downloadCsvLines } from '../../shared/export/csv-export';
@@ -41,6 +42,7 @@ interface CandidateRow {
   current_stage_id: string;
   stage_name: string;
   applied_at: string;
+  cand_raw?: Record<string, string>;
   _raw: Record<string, string>;
 }
 
@@ -129,6 +131,9 @@ interface CandidateRow {
           <button [class.active]="activeTab === 'rejected'" (click)="activeTab = 'rejected'; applyFilters()">
             Rejected <span class="tab-count">{{ rejectedCount }}</span>
           </button>
+          <button [class.active]="activeTab === 'blacklisted'" (click)="activeTab = 'blacklisted'; applyFilters()">
+            Blacklisted <span class="tab-count">{{ blacklistedCount }}</span>
+          </button>
         </div>
 
         <!-- Table -->
@@ -145,7 +150,7 @@ interface CandidateRow {
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let c of filteredCandidates" (click)="openProfile(c)" class="clickable-row">
+              <tr *ngFor="let c of filteredCandidates" (click)="!isBlacklisted(c) && openProfile(c)" class="clickable-row" [class.row-disabled]="isBlacklisted(c)">
                 <td>
                   <div class="candidate-cell">
                     <div class="avatar-circle">{{ getInitials(c.candidate_name) }}</div>
@@ -161,9 +166,11 @@ interface CandidateRow {
                 <td><span class="date-text">{{ formatDate(c.applied_at) }}</span></td>
                 <td>
                   <div class="action-btns" (click)="$event.stopPropagation()">
-                    <button class="btn-view" (click)="openProfile(c)"><i class="fas fa-user"></i> Profile</button>
-                    <button class="btn-pipeline" *ngIf="canOpenPipeline(c)" (click)="openPipelineModal(c)"><i class="fas fa-project-diagram"></i> Pipeline</button>
-                    <span class="terminal-pill" *ngIf="!canOpenPipeline(c)"><i class="fas fa-lock"></i> Closed</span>
+                    <button class="btn-view" [disabled]="isBlacklisted(c)" (click)="!isBlacklisted(c) && openProfile(c)" [title]="isBlacklisted(c) ? 'Profile disabled for blacklisted candidates' : 'View Profile'"><i class="fas fa-user"></i> Profile</button>
+                    <button class="btn-pipeline" *ngIf="canOpenPipeline(c)" [disabled]="isBlacklisted(c)" (click)="!isBlacklisted(c) && openPipelineModal(c)" [title]="isBlacklisted(c) ? 'Pipeline disabled for blacklisted candidates' : 'Change Pipeline Stage'"><i class="fas fa-project-diagram"></i> Pipeline</button>
+                    <span class="terminal-pill" *ngIf="!canOpenPipeline(c) && activeTab !== 'hired' && activeTab !== 'blacklisted'"><i class="fas fa-lock"></i> Closed</span>
+                    <button class="btn-blacklist" *ngIf="activeTab === 'hired' && !isBlacklisted(c)" (click)="openBlacklistModal(c)"><i class="fas fa-ban"></i> Blacklist</button>
+                    <span class="blacklisted-pill" *ngIf="isBlacklisted(c)"><i class="fas fa-ban"></i> Blacklisted until {{ getBlacklistExpiry(c) }}</span>
                   </div>
                 </td>
               </tr>
@@ -195,12 +202,23 @@ interface CandidateRow {
           <div class="profile-hero-info">
             <div class="profile-name-row">
               <h2 class="profile-name">{{ selectedCandidate.candidate_name }}</h2>
-              <button *ngIf="selectedCandidate._raw['resume_url']"
-                      class="btn-download-resume"
-                      (click)="downloadResume(selectedCandidate._raw['resume_url'])"
-                      title="Download Resume">
-                <i class="fas fa-file-download"></i> Download Resume
-              </button>
+              <div class="hero-action-btns">
+                <button *ngIf="selectedCandidate._raw['resume_url']"
+                        class="btn-download-resume"
+                        (click)="downloadResume(selectedCandidate._raw['resume_url'])"
+                        title="Download Resume">
+                  <i class="fas fa-file-download"></i> Download Resume
+                </button>
+                <button
+                  class="btn-view"
+                  (click)="requestDocuments(selectedCandidate)"
+                  [disabled]="requestingDocs"
+                  style="margin-top: 6px; font-size: 11px; padding: 4px 10px; border-radius: 4px; display: inline-flex; align-items: center; gap: 5px; width: fit-content;"
+                >
+                  <i class="fas" [ngClass]="requestingDocs ? 'fa-spinner fa-spin' : 'fa-paper-plane'"></i>
+                  {{ requestingDocs ? 'Requesting...' : 'Request Documents' }}
+                </button>
+              </div>
             </div>
             <span class="profile-email">{{ selectedCandidate.candidate_email }}</span>
           </div>
@@ -244,6 +262,23 @@ interface CandidateRow {
               <i class="fas" [ngClass]="drawerSkillSaving ? 'fa-spinner fa-spin' : 'fa-plus'"></i> Add
             </button>
           </div>
+        </div>
+
+        <div class="profile-section" *ngIf="selectedCandidate && selectedCandidate.status === 'HIRED'">
+          <h4>Mandatory Documents</h4>
+          <div class="documents-list" *ngIf="!fetchingDocuments && candidateDocuments.length > 0">
+            <div class="doc-item" *ngFor="let doc of candidateDocuments">
+              <div class="doc-info">
+                <i class="fas fa-file-alt doc-icon"></i>
+                <span class="doc-type">{{ doc.document_type || 'Unknown Document' }}</span>
+              </div>
+              <button class="btn-download-doc" (click)="downloadCandidateDoc(doc)" title="Download/View">
+                <i class="fas fa-download"></i>
+              </button>
+            </div>
+          </div>
+          <div class="drawer-hint" *ngIf="fetchingDocuments"><i class="fas fa-spinner fa-spin"></i> Fetching documents...</div>
+          <p class="drawer-hint" *ngIf="!fetchingDocuments && candidateDocuments.length === 0">No documents uploaded yet.</p>
         </div>
 
         <div class="drawer-actions">
@@ -717,6 +752,56 @@ interface CandidateRow {
         </div>
       </div>
     </div>
+
+    <!-- ═══ BLACKLIST MODAL ═══ -->
+    <div class="modal-overlay" *ngIf="showBlacklistModal" (click)="closeBlacklistModal()">
+      <div class="modal-card blacklist-modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3><i class="fas fa-ban" style="color:#dc2626;margin-right:8px"></i> Blacklist Candidate</h3>
+          <button class="modal-close" type="button" (click)="closeBlacklistModal()" aria-label="Close"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" *ngIf="blacklistTarget">
+          <div class="blacklist-info">
+            <div class="avatar-circle">{{ getInitials(blacklistTarget.candidate_name) }}</div>
+            <div class="blacklist-info-text">
+              <span class="name">{{ blacklistTarget.candidate_name }}</span>
+              <span class="email">{{ blacklistTarget.candidate_email }}</span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label>Blacklist Duration <span class="req">*</span></label>
+            <div class="blacklist-duration-options">
+              <button type="button" [class.selected]="blacklistDuration === 3" (click)="blacklistDuration = 3" class="duration-btn">
+                <i class="fas fa-calendar-alt"></i> 3 Months
+              </button>
+              <button type="button" [class.selected]="blacklistDuration === 6" (click)="blacklistDuration = 6" class="duration-btn">
+                <i class="fas fa-calendar-alt"></i> 6 Months
+              </button>
+              <button type="button" [class.selected]="blacklistDuration === 12" (click)="blacklistDuration = 12" class="duration-btn">
+                <i class="fas fa-calendar-alt"></i> 1 Year
+              </button>
+              <button type="button" [class.selected]="blacklistDuration === 'FOREVER'" (click)="blacklistDuration = 'FOREVER'" class="duration-btn duration-btn--forever">
+                <i class="fas fa-infinity"></i> Forever
+              </button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label>Reason</label>
+            <input type="text" class="form-input" [(ngModel)]="blacklistReason" placeholder="Hired but did not join" />
+          </div>
+
+          <div class="blacklist-actions">
+            <button class="btn-cancel-sm" (click)="closeBlacklistModal()"><i class="fas fa-times"></i> Cancel</button>
+            <button class="btn-blacklist-confirm" (click)="confirmBlacklist()" [disabled]="isBlacklisting || !blacklistDuration">
+              <i class="fas" [ngClass]="isBlacklisting ? 'fa-spinner fa-spin' : 'fa-ban'"></i>
+              {{ isBlacklisting ? 'Blacklisting...' : 'Confirm Blacklist' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   `,
   styleUrls: ['../../hr-dashboard/hr-dashboard.scss'],
   styles: [`
@@ -814,8 +899,8 @@ interface CandidateRow {
     .source-text { font-size: 13px; color: #64748b; }
     .date-text { font-size: 13px; color: #64748b; }
     .action-btns { display: flex; gap: 6px; }
-    .btn-view { padding: 6px 12px; border: 1px solid #2563eb; background: #fff; color: #2563eb; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; &:hover { background: #2563eb; color: #fff; } }
-    .btn-pipeline { padding: 6px 12px; border: 1px solid #10b981; background: #fff; color: #10b981; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; &:hover { background: #10b981; color: #fff; } }
+    .btn-view { padding: 6px 12px; border: 1px solid #2563eb; background: #fff; color: #2563eb; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; &:hover:not(:disabled) { background: #2563eb; color: #fff; } &:disabled { opacity: 0.5; cursor: not-allowed; border-color: #cbd5e1; color: #94a3b8; } }
+    .btn-pipeline { padding: 6px 12px; border: 1px solid #10b981; background: #fff; color: #10b981; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; &:hover:not(:disabled) { background: #10b981; color: #fff; } &:disabled { opacity: 0.5; cursor: not-allowed; border-color: #cbd5e1; color: #94a3b8; } }
     .terminal-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
 
     /* ── Empty State ── */
@@ -838,7 +923,8 @@ interface CandidateRow {
     .drawer-body { padding: 24px; }
     .profile-hero { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
     .profile-hero-info { flex: 1; min-width: 0; }
-    .profile-name-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; }
+    .profile-name-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; }
+    .hero-action-btns { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
     .avatar-large { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1a3a7a); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 22px; flex-shrink: 0; }
     .profile-name { margin: 0; font-size: 20px; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .btn-download-resume {
@@ -1328,6 +1414,48 @@ interface CandidateRow {
     .btn-cancel-sm { padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 6px; background: white; cursor: pointer; font-weight: 600; font-size: 13px; color: #64748b; &:hover { background: #f1f5f9; } }
     .btn-confirm-sm { padding: 8px 16px; border: none; border-radius: 6px; background: #2563eb; color: white; cursor: pointer; font-weight: 600; font-size: 13px; &:hover { background: #1d4ed8; } &:disabled { opacity: 0.5; cursor: not-allowed; } }
 
+    /* ── Blacklist ── */
+    .btn-blacklist {
+      padding: 6px 12px; border: 1px solid #dc2626; background: #fff; color: #dc2626; border-radius: 6px;
+      font-weight: 600; font-size: 12px; cursor: pointer;
+      &:hover { background: #dc2626; color: #fff; }
+    }
+    .blacklisted-pill {
+      display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca;
+    }
+    .blacklist-modal {
+      max-width: 480px; width: 92%;
+    }
+    .blacklist-info {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 20px;
+      padding: 14px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0;
+    }
+    .blacklist-info-text { display: flex; flex-direction: column; gap: 2px;
+      .name { font-weight: 700; font-size: 15px; color: #0f172a; }
+      .email { font-size: 13px; color: #64748b; }
+    }
+    .blacklist-duration-options {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px;
+    }
+    .duration-btn {
+      padding: 10px 16px; border: 2px solid #e2e8f0; border-radius: 10px; background: #fff;
+      font-size: 13px; font-weight: 600; color: #475569; cursor: pointer;
+      display: flex; align-items: center; gap: 8px; transition: all 0.2s;
+      &:hover { border-color: #94a3b8; background: #f8fafc; }
+      &.selected { border-color: #dc2626; background: #fef2f2; color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.1); }
+    }
+    .duration-btn--forever.selected { border-color: #7c2d12; background: #fff7ed; color: #7c2d12; box-shadow: 0 0 0 3px rgba(124,45,18,0.1); }
+    .blacklist-actions {
+      display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0;
+    }
+    .btn-blacklist-confirm {
+      padding: 10px 20px; border: none; border-radius: 8px; background: #dc2626; color: #fff;
+      font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+      &:hover { background: #b91c1c; }
+      &:disabled { opacity: 0.5; cursor: not-allowed; }
+    }
+
     .btn-reject-sm {
       padding: 8px 16px;
       border: 1px solid #fecaca;
@@ -1398,6 +1526,56 @@ interface CandidateRow {
     .hint { font-size: 13px; color: #64748b; margin-top: 6px; }
     .checkbox-list { display: flex; flex-direction: column; gap: 6px; }
     .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #334155; }
+
+    /* ─── Documents List ─── */
+    .documents-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .doc-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      transition: all 0.2s;
+      &:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+      }
+    }
+    .doc-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .doc-icon {
+      color: #64748b;
+      font-size: 16px;
+    }
+    .doc-type {
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+    }
+    .btn-download-doc {
+      background: none;
+      border: none;
+      color: #3b82f6;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.2s;
+      &:hover {
+        background: #dbeafe;
+        color: #2563eb;
+      }
+    }
   `]
 })
 export class CandidatesTab implements OnInit {
@@ -1433,11 +1611,15 @@ export class CandidatesTab implements OnInit {
   activeCount = 0;
   hiredCount = 0;
   rejectedCount = 0;
+  blacklistedCount = 0;
 
   // Drawer
   showDrawer = false;
   selectedCandidate: CandidateRow | null = null;
   candidateSkills: Record<string, string>[] = [];
+  candidateDocuments: any[] = [];
+  fetchingDocuments = false;
+  requestingDocs = false;
 
   // Inline Pipeline Modal
   showPipelineModal = false;
@@ -1517,6 +1699,13 @@ export class CandidatesTab implements OnInit {
   // HR resolution for candidate argue (ARGUED -> final decision)
   isArgueResolving = false;
 
+  // ── Blacklist state ──
+  showBlacklistModal = false;
+  blacklistTarget: CandidateRow | null = null;
+  blacklistDuration: number | 'FOREVER' | null = null;
+  blacklistReason = 'Hired but did not join';
+  isBlacklisting = false;
+
   /** Interviewer feedback rows for Pipeline modal (loaded with interview decision state). */
   pipelineInterviewFeedback: Array<{
     interview_id: string;
@@ -1529,7 +1718,8 @@ export class CandidatesTab implements OnInit {
   constructor(
     private soap: SoapService,
     private router: Router,
-    private notifyService: NotificationService
+    private notifyService: NotificationService,
+    private toast: ToastService
   ) {}
 
   downloadResume(url: string | undefined): void {
@@ -1640,6 +1830,8 @@ export class CandidatesTab implements OnInit {
           current_stage_id: a['current_stage_id'] || '',
           stage_name: stageMap.get(a['current_stage_id'] || '') || 'New',
           applied_at: a['applied_at'] || a['created_at'] || '',
+          // Add candidate raw data so it can be used for blacklist temp fields
+          cand_raw: cand || {},
           _raw: a
         };
       });
@@ -1679,9 +1871,11 @@ export class CandidatesTab implements OnInit {
     const jobFiltered = this.selectedJobId === 'ALL'
       ? this.allCandidates
       : this.allCandidates.filter(c => c.requisition_id === this.selectedJobId);
+
     this.activeCount = jobFiltered.filter(c => c.status === 'ACTIVE').length;
     this.hiredCount = jobFiltered.filter(c => c.status === 'HIRED').length;
     this.rejectedCount = jobFiltered.filter(c => c.status === 'REJECTED').length;
+    this.blacklistedCount = jobFiltered.filter(c => this.isBlacklisted(c)).length;
   }
 
   onJobChange(): void {
@@ -1696,6 +1890,7 @@ export class CandidatesTab implements OnInit {
     if (this.activeTab === 'active') list = list.filter(c => c.status === 'ACTIVE');
     else if (this.activeTab === 'hired') list = list.filter(c => c.status === 'HIRED');
     else if (this.activeTab === 'rejected') list = list.filter(c => c.status === 'REJECTED');
+    else if (this.activeTab === 'blacklisted') list = list.filter(c => this.isBlacklisted(c));
 
     // Job filter
     if (this.selectedJobId !== 'ALL') {
@@ -1794,6 +1989,53 @@ export class CandidatesTab implements OnInit {
     }
   }
 
+  // ═══════════════════════════════════════════════════
+  //  BLACKLIST LOGIC
+  // ═══════════════════════════════════════════════════
+
+  isBlacklisted(c: CandidateRow): boolean {
+    return c['cand_raw']?.['temp1'] === 'BLACKLISTED';
+  }
+
+  getBlacklistExpiry(c: CandidateRow): string {
+    const d = c['cand_raw']?.['temp2'];
+    if (!d) return '';
+    if (d.startsWith('9999')) return 'Forever';
+    return this.formatDate(d);
+  }
+
+  openBlacklistModal(c: CandidateRow): void {
+    this.blacklistTarget = c;
+    this.blacklistDuration = 3;
+    this.blacklistReason = 'Hired but did not join';
+    this.showBlacklistModal = true;
+  }
+
+  closeBlacklistModal(): void {
+    this.showBlacklistModal = false;
+    this.blacklistTarget = null;
+    this.blacklistDuration = null;
+  }
+
+  async confirmBlacklist(): Promise<void> {
+    if (!this.blacklistTarget || !this.blacklistDuration) return;
+    this.isBlacklisting = true;
+    try {
+      await this.soap.blacklistCandidate(
+        this.blacklistTarget,
+        this.blacklistDuration,
+        this.blacklistReason
+      );
+      this.closeBlacklistModal();
+      await this.loadData();
+    } catch (e) {
+      console.error('Failed to blacklist candidate', e);
+      alert('Failed to blacklist candidate.');
+    } finally {
+      this.isBlacklisting = false;
+    }
+  }
+
   exportCandidatesCsv(): void {
     const rows = this.filteredCandidates;
     const lines: string[][] = [
@@ -1821,9 +2063,59 @@ export class CandidatesTab implements OnInit {
   async openProfile(c: CandidateRow): Promise<void> {
     this.selectedCandidate = c;
     this.showDrawer = true;
+    this.candidateDocuments = [];
     try {
       this.candidateSkills = await this.soap.getCandidateSkills(c.candidate_id);
     } catch { this.candidateSkills = []; }
+
+    // Fetch documents if hired
+    if (c.status === 'HIRED') {
+      this.fetchingDocuments = true;
+      try {
+        const allDocs = await this.soap.getCandidateDocuments(c.candidate_id);
+        // Filter out request markers from the "Mandatory Documents" view
+        this.candidateDocuments = allDocs.filter(d => d.document_type !== 'DOCUMENT_REQUEST');
+      } catch (e) {
+        console.error('Error fetching documents:', e);
+      } finally {
+        this.fetchingDocuments = false;
+      }
+    }
+  }
+
+  async requestDocuments(c: any): Promise<void> {
+    if (!c) return;
+    this.requestingDocs = true;
+    try {
+      const hrEmail = sessionStorage.getItem('email') || 'hr@yourcompany.com';
+      const jobTitle = this.getJobTitle(c.requisition_id) || 'the position';
+      await this.soap.requestCandidateDocuments(c, hrEmail, jobTitle);
+      this.toast.success('Document request sent successfully to ' + (c.candidate_name || 'candidate') + '.');
+    } catch (e: any) {
+      console.error('Failed to request documents:', e);
+      this.toast.error('Failed to send document request.');
+    } finally {
+      this.requestingDocs = false;
+    }
+  }
+
+  downloadCandidateDoc(doc: any): void {
+    const base64 = doc.temp1;
+    if (!base64) {
+      this.toast.error('Document content is empty.');
+      return;
+    }
+
+    const type = doc.document_type || 'document';
+    const candidateName = this.selectedCandidate?.candidate_name || 'candidate';
+    const fileName = `${type}_${candidateName}.pdf`;
+
+    const link = document.createElement('a');
+    link.href = base64; // This is the data URL
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   closeDrawer(): void {

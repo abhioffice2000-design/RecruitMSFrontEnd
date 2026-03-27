@@ -5,7 +5,8 @@ import { Router } from '@angular/router';
 import jsPDF from 'jspdf';
 import { SoapService } from '../../../services/soap.service';
 import { buildMailBody, type MailEvent } from '../../../services/mail-templates';
-
+import { fileToResumeDataUrl } from '../../../shared/resume-storage.util';
+import { ToastService } from '../../../services/toast.service';
 interface AppRow {
   application_id: string;
   requisition_id: string;
@@ -147,9 +148,12 @@ interface AppRow {
               &nbsp;·&nbsp;
               <i class="fas fa-sync-alt"></i> Updated: {{ formatDate(app.offer.updatedAt) }} <span *ngIf="app.offer.updatedBy">({{ app.offer.updatedBy }})</span>
             </div>
-            <div style="margin-top:10px;">
+            <div style="margin-top:10px; display: flex; gap: 8px;">
               <button class="btn-download" (click)="downloadOfferLetter(app)">
                 <i class="fas fa-download"></i> Download Offer Letter
+              </button>
+              <button class="btn-upload" (click)="openUploadModal(app)">
+                <i class="fas fa-upload"></i> Upload Documents
               </button>
             </div>
           </div>
@@ -204,6 +208,55 @@ interface AppRow {
           >
             <i class="fas" [ngClass]="argueOfferSubmitting ? 'fa-spinner fa-spin' : 'fa-paper-plane'"></i>
             {{ argueOfferSubmitting ? 'Submitting...' : 'Submit Reason' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Document Upload Modal -->
+    <div class="modal-overlay" *ngIf="showUploadModal" (click)="closeUploadModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3><i class="fas fa-upload"></i> Upload Documents</h3>
+          <button type="button" class="modal-close" (click)="closeUploadModal()" [disabled]="uploadSubmitting">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <p class="modal-subtitle" *ngIf="uploadTargetApp">
+          Please upload the mandatory documents to complete your onboarding for <strong>{{ uploadTargetApp.jobTitle }}</strong>.
+        </p>
+
+        <div class="upload-grid" style="display: grid; gap: 12px; margin-top: 16px;">
+          <!-- Offer Letter E-Sign -->
+          <div class="upload-row" style="padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;">
+            <div style="font-weight: 600; font-size: 13px; color: #1e293b; margin-bottom: 6px;">Offer Letter E-Sign</div>
+            <input type="file" [disabled]="uploadSubmitting" (change)="onFileSelected($event, 'esign')" style="font-size: 13px; width: 100%;">
+          </div>
+
+          <!-- Aadhar Card -->
+          <div class="upload-row" style="padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;">
+            <div style="font-weight: 600; font-size: 13px; color: #1e293b; margin-bottom: 6px;">Aadhar Card</div>
+            <input type="file" [disabled]="uploadSubmitting" (change)="onFileSelected($event, 'aadhar')" style="font-size: 13px; width: 100%;">
+          </div>
+
+          <!-- PAN Card -->
+          <div class="upload-row" style="padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;">
+            <div style="font-weight: 600; font-size: 13px; color: #1e293b; margin-bottom: 6px;">PAN Card</div>
+            <input type="file" [disabled]="uploadSubmitting" (change)="onFileSelected($event, 'pan')" style="font-size: 13px; width: 100%;">
+          </div>
+
+          <!-- Last Salary Slip -->
+          <div class="upload-row" style="padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc;">
+            <div style="font-weight: 600; font-size: 13px; color: #1e293b; margin-bottom: 6px;">Last Salary Slip</div>
+            <input type="file" [disabled]="uploadSubmitting" (change)="onFileSelected($event, 'salary')" style="font-size: 13px; width: 100%;">
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 20px;">
+          <button type="button" class="btn-cancel" (click)="closeUploadModal()" [disabled]="uploadSubmitting">Cancel</button>
+          <button type="button" class="btn-submit" (click)="submitDocuments()" [disabled]="uploadSubmitting || (!selectedFileEsign && !selectedFileAadhar && !selectedFilePan && !selectedFileSalary)">
+            <i class="fas" [ngClass]="uploadSubmitting ? 'fa-spinner fa-spin' : 'fa-cloud-upload-alt'"></i>
+            {{ uploadSubmitting ? 'Uploading...' : 'Upload Documents' }}
           </button>
         </div>
       </div>
@@ -298,6 +351,7 @@ interface AppRow {
     .offer-details { font-size: 13px; color: #475569; i { margin-right: 2px; color: #64748b; } }
     .offer-actions { display: flex; gap: 8px; }
     .btn-download { padding: 8px 18px; background: #fff; color: #2563eb; border: 1px solid #bfdbfe; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; i { margin-right: 4px; } &:hover { background: #eff6ff; } }
+    .btn-upload { padding: 8px 18px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; i { margin-right: 4px; } &:hover { background: #1d4ed8; } &:disabled { opacity: 0.5; } }
     .btn-accept { padding: 8px 18px; background: #16a34a; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; i { margin-right: 4px; } &:hover { background: #15803d; } &:disabled { opacity: 0.5; } }
     .btn-reject { padding: 8px 18px; background: #fff; color: #dc2626; border: 1px solid #fecaca; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; i { margin-right: 4px; } &:hover { background: #fee2e2; } &:disabled { opacity: 0.5; } }
     .btn-argue { padding: 8px 18px; background: #fff; color: #7c3aed; border: 1px solid #ddd6fe; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; i { margin-right: 4px; } &:hover { background: #f3e8ff; } &:disabled { opacity: 0.5; } }
@@ -355,6 +409,15 @@ export class CandidateApplicationsComponent implements OnInit {
   argueOfferReason = '';
   argueOfferTargetApp: AppRow | null = null;
 
+  // Document Upload State
+  showUploadModal = false;
+  uploadSubmitting = false;
+  uploadTargetApp: AppRow | null = null;
+  selectedFileEsign: File | null = null;
+  selectedFileAadhar: File | null = null;
+  selectedFilePan: File | null = null;
+  selectedFileSalary: File | null = null;
+
   private stageIcons: Record<string, string> = {
     'applied': 'fa-file-alt',
     'screening': 'fa-search',
@@ -363,10 +426,14 @@ export class CandidateApplicationsComponent implements OnInit {
     'hired': 'fa-check-circle',
   };
 
-  constructor(private soap: SoapService, public router: Router) {}
+  constructor(
+    private soap: SoapService, 
+    public router: Router,
+    private toast: ToastService
+  ) {}
 
   async ngOnInit(): Promise<void> {
-    this.candidateId = sessionStorage.getItem('loggedInCandidateId') || '';
+    this.candidateId = sessionStorage.getItem('loggedInCandidateId') || sessionStorage.getItem('candidateId') || '';
     try {
       // Fetch stages, jobs, depts in parallel; then fetch ONLY this candidate's apps
       const [stagesRaw, jobs, depts] = await Promise.all([
@@ -743,6 +810,89 @@ export class CandidateApplicationsComponent implements OnInit {
       console.error('Failed to argue offer:', e);
     } finally {
       this.argueOfferSubmitting = false;
+    }
+  }
+
+  // Document Upload Methods
+  openUploadModal(app: AppRow): void {
+    if (!app || app.status !== 'HIRED') {
+      // It might be 'HIRED' or 'ACCEPTED' depending on how the frontend handles it,
+      // but the HTML uses `app.offer && app.offer.status === 'ACCEPTED'`
+    }
+    this.uploadTargetApp = app;
+    this.showUploadModal = true;
+    this.uploadSubmitting = false;
+    this.selectedFileEsign = null;
+    this.selectedFileAadhar = null;
+    this.selectedFilePan = null;
+    this.selectedFileSalary = null;
+  }
+
+  closeUploadModal(): void {
+    if (this.uploadSubmitting) return;
+    this.showUploadModal = false;
+    this.uploadTargetApp = null;
+  }
+
+  onFileSelected(event: any, docType: 'esign' | 'aadhar' | 'pan' | 'salary'): void {
+    const file = event.target.files[0];
+    if (file) {
+      if (docType === 'esign') this.selectedFileEsign = file;
+      else if (docType === 'aadhar') this.selectedFileAadhar = file;
+      else if (docType === 'pan') this.selectedFilePan = file;
+      else if (docType === 'salary') this.selectedFileSalary = file;
+    }
+  }
+
+  async submitDocuments(): Promise<void> {
+    const app = this.uploadTargetApp;
+    if (!app) return;
+
+    this.uploadSubmitting = true;
+    try {
+      const cid =
+        this.candidateId ||
+        sessionStorage.getItem('loggedInCandidateId') ||
+        sessionStorage.getItem('candidateId') ||
+        String(app._raw['candidate_id'] || app._raw['Candidate_id'] || '').trim();
+
+      if (!cid) throw new Error('Candidate ID is missing.');
+
+      const uploads: Promise<any>[] = [];
+
+      if (this.selectedFileEsign) {
+        const b64 = await fileToResumeDataUrl(this.selectedFileEsign);
+        if (b64) uploads.push(this.soap.uploadCandidateDocument(cid, 'ESIGN', b64));
+      }
+      if (this.selectedFileAadhar) {
+        const b64 = await fileToResumeDataUrl(this.selectedFileAadhar);
+        if (b64) uploads.push(this.soap.uploadCandidateDocument(cid, 'AADHAR', b64));
+      }
+      if (this.selectedFilePan) {
+        const b64 = await fileToResumeDataUrl(this.selectedFilePan);
+        if (b64) uploads.push(this.soap.uploadCandidateDocument(cid, 'PAN', b64));
+      }
+      if (this.selectedFileSalary) {
+        const b64 = await fileToResumeDataUrl(this.selectedFileSalary);
+        if (b64) uploads.push(this.soap.uploadCandidateDocument(cid, 'SALARY_SLIP', b64));
+      }
+
+      if (uploads.length === 0) {
+        this.toast.error('No valid files selected or files are too large.');
+        return;
+      }
+
+      await Promise.all(uploads);
+      this.uploadSubmitting = false; // Set to false so modal can close
+      this.toast.success('All selected documents have been successfully uploaded.');
+      this.closeUploadModal();
+      
+    } catch (e: any) {
+      console.error('Failed to submit documents:', e);
+      const errDetail = e?.message || e?.responseText || JSON.stringify(e) || 'Unknown error';
+      this.toast.error('Failed to submit documents. Detail: ' + errDetail);
+    } finally {
+      this.uploadSubmitting = false;
     }
   }
 

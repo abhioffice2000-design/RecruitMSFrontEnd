@@ -39,6 +39,7 @@
           <option>In Review</option>
           <option>Hired</option>
           <option>Rejected</option>
+          <option>Blacklisted</option>
         </select>
       </div>
     </div>
@@ -75,20 +76,26 @@
             <td class="status-col">
               <span class="badge" [class.badge-success]="c.status === 'Hired'"
                 [class.badge-primary]="c.status === 'In Review'" [class.badge-info]="c.status === 'Registered'"
-                [class.badge-warning]="c.status === 'New Applied'" [class.badge-danger]="c.status === 'Rejected'">
-                {{ c.status }}
+                [class.badge-warning]="c.status === 'New Applied'" [class.badge-danger]="c.status === 'Rejected'"
+                [class.badge-error]="isBlacklisted(c)">
+                <ng-container *ngIf="isBlacklisted(c); else stdStatus">Blacklisted</ng-container>
+                <ng-template #stdStatus>{{ c.status }}</ng-template>
               </span>
             </td>
             <td class="actions-col">
-              <button class="view-details-btn" (click)="viewDetails(c)">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                View Details
-              </button>
+              <div style="display: flex; gap: 0.5rem; align-items: center; justify-content: flex-end;">
+                <button class="btn-profile" [disabled]="isBlacklisted(c)" (click)="!isBlacklisted(c) && viewDetails(c)" [title]="isBlacklisted(c) ? 'Profile disabled for blacklisted candidates' : 'View Profile'">
+                  <i class="fas fa-user"></i> Profile
+                </button>
+                
+                <button class="btn-blacklist-action" *ngIf="!isBlacklisted(c)" (click)="openBlacklistModal(c)" title="Blacklist Candidate">
+                  <i class="fas fa-ban"></i> Blacklist
+                </button>
+
+                <button class="btn-unblacklist-action" *ngIf="isBlacklisted(c)" (click)="openRemoveBlacklistModal(c)" title="Remove from Blacklist">
+                  <i class="fas fa-undo"></i> Unblacklist
+                </button>
+              </div>
             </td>
           </tr>
           <tr *ngIf="filteredCandidates.length === 0">
@@ -152,8 +159,10 @@
         <span class="badge badge-lg" [class.badge-success]="selectedCandidate.status === 'Hired'"
           [class.badge-primary]="selectedCandidate.status === 'In Review'"
           [class.badge-warning]="selectedCandidate.status === 'New Applied'"
-          [class.badge-danger]="selectedCandidate.status === 'Rejected'">
-          {{ selectedCandidate.status }}
+          [class.badge-danger]="selectedCandidate.status === 'Rejected'"
+          [class.badge-error]="isBlacklisted(selectedCandidate)">
+          <ng-container *ngIf="isBlacklisted(selectedCandidate); else stdStatusModal">Blacklisted</ng-container>
+          <ng-template #stdStatusModal>{{ selectedCandidate.status }}</ng-template>
         </span>
         <button class="btn-icon" (click)="closeDetails()">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -246,7 +255,141 @@
 
     <!-- Modal Footer -->
     <div class="modal-footer">
+      <button class="btn btn-danger remove-blacklist-btn" *ngIf="isBlacklisted(selectedCandidate)" style="border: 1px solid #fecaca; background: #fff; color: #dc2626; border-radius: 6px; padding: 8px 16px; font-weight: 600;" (click)="openRemoveBlacklistModal(selectedCandidate)">
+        <i class="fas fa-undo" style="margin-right: 6px;"></i>
+        Remove from Blacklist
+      </button>
       <button class="btn outline-btn" (click)='closeDetails()'>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Blacklist Modal -->
+<div class="modal-overlay" *ngIf="blacklistingCandidate" style="display: flex; align-items: center; justify-content: center; z-index: 1050; padding: 1rem;">
+  <div class="modal-content animate-fade-in" style="max-width: 520px; width: 100%; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 90vh;">
+    
+    <!-- Modal Header -->
+    <div class="modal-header" style="background-color: white; border-bottom: 1px solid #e2e8f0; padding: 1.25rem 1.5rem; flex-shrink: 0;">
+      <div class="modal-title-group" style="align-items: flex-start;">
+        <div class="candidate-avatar-lg" style="background: #fef2f2; color: #dc2626; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+          <i class="fas fa-user-slash" style="font-size: 1.25rem;"></i>
+        </div>
+        <div>
+          <h2 style="color: #0f172a; font-size: 1.25rem; font-weight: 600; margin: 0 0 0.25rem 0;">Blacklist Candidate</h2>
+          <p class="modal-subtitle" style="color: #64748b; font-size: 0.875rem; margin: 0; line-height: 1.4;">
+            You are about to block <strong>{{ blacklistingCandidate.candidate_name }}</strong> from being processed in active recruitment flows.
+          </p>
+        </div>
+      </div>
+      <div class="modal-header-right" style="align-self: flex-start; margin-top: -0.25rem;">
+        <button class="btn-icon" (click)="closeBlacklistModal()" style="color: #64748b; padding: 0.5rem; border-radius: 50%; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'; this.style.color='#0f172a'" onmouseout="this.style.background='transparent'; this.style.color='#64748b'">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal Body (Scrollable) -->
+    <div class="modal-body" style="padding: 1.5rem; background: white; overflow-y: auto; flex-grow: 1;">
+      
+      <!-- Warning Alert -->
+      <div style="background-color: #fffbeb; border: 1px solid #fef3c7; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; gap: 0.75rem; align-items: flex-start;">
+        <i class="fas fa-exclamation-triangle" style="color: #d97706; margin-top: 0.125rem;"></i>
+        <div>
+          <p style="margin: 0; color: #92400e; font-size: 0.875rem; font-weight: 500; line-height: 1.4;">
+            This action is visible to all administrators and HR personnel. The candidate will be immediately moved to the Blacklist tab.
+          </p>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 1.5rem;">
+        <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #334155; margin-bottom: 0.5rem;">
+          Blacklist Duration <span style="color: #ef4444;">*</span>
+        </label>
+        <div style="position: relative;">
+          <select class="form-control" [(ngModel)]="blacklistDuration" style="width: 100%; padding: 0.625rem 2.5rem 0.625rem 1rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.875rem; color: #1e293b; background-color: #f8fafc; appearance: none; outline: none; transition: all 0.2s; cursor: pointer;" onfocus="this.style.borderColor='#3b82f6'; this.style.backgroundColor='#ffffff'" onblur="this.style.borderColor='#cbd5e1'; this.style.backgroundColor='#f8fafc'">
+            <option value="3">3 Months</option>
+            <option value="6">6 Months</option>
+            <option value="12">1 Year</option>
+            <option value="FOREVER">Forever (Permanent)</option>
+          </select>
+          <div style="position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); pointer-events: none; color: #64748b;">
+            <i class="fas fa-chevron-down" style="font-size: 0.875rem;"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label style="display: flex; justify-content: space-between; align-items: center; font-size: 0.875rem; font-weight: 600; color: #334155; margin-bottom: 0.5rem;">
+          <span>Reason for Blacklisting</span>
+          <span style="font-weight: 400; color: #94a3b8; font-size: 0.75rem;">Optional</span>
+        </label>
+        <textarea class="form-control" [(ngModel)]="blacklistReason" rows="3" placeholder="Provide specific details justifying this action..."
+          style="width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 6px; resize: vertical; min-height: 80px; font-size: 0.875rem; color: #1e293b; background-color: #f8fafc; outline: none; transition: all 0.2s;" onfocus="this.style.borderColor='#3b82f6'; this.style.backgroundColor='#ffffff'" onblur="this.style.borderColor='#cbd5e1'; this.style.backgroundColor='#f8fafc'"></textarea>
+      </div>
+    </div>
+
+    <!-- Modal Footer (Fixed at bottom) -->
+    <div class="modal-footer" style="padding: 1rem 1.5rem; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 0.75rem; flex-shrink: 0;">
+      <button class="btn outline-btn" (click)='closeBlacklistModal()' [disabled]="isSubmittingBlacklist" style="padding: 0.5rem 1.25rem; font-weight: 500; font-size: 0.875rem; border: 1px solid #cbd5e1; color: #475569; background: white; border-radius: 6px; transition: all 0.2s; cursor: pointer;" onmouseover="if(!this.disabled) {this.style.backgroundColor='#f1f5f9'; this.style.color='#0f172a';}" onmouseout="if(!this.disabled) {this.style.backgroundColor='white'; this.style.color='#475569';}">
+        Cancel
+      </button>
+      <button class="btn btn-danger" (click)="submitBlacklist()" [disabled]="isSubmittingBlacklist" style="background: #dc2626; color: white; border: none; padding: 0.5rem 1.25rem; border-radius: 6px; font-weight: 500; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-width: 140px; box-shadow: 0 1px 2px rgba(220, 38, 38, 0.1);" onmouseover="if(!this.disabled) {this.style.backgroundColor='#b91c1c'; this.style.boxShadow='0 4px 6px rgba(220, 38, 38, 0.2)';}" onmouseout="if(!this.disabled) {this.style.backgroundColor='#dc2626'; this.style.boxShadow='0 1px 2px rgba(220, 38, 38, 0.1)';}">
+        <ng-container *ngIf="!isSubmittingBlacklist">
+          Blacklist Candidate
+        </ng-container>
+        <ng-container *ngIf="isSubmittingBlacklist">
+          <i class="fas fa-circle-notch fa-spin"></i> Processing...
+        </ng-container>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Remove from Blacklist Confirmation Modal -->
+<div class="modal-overlay" *ngIf="removingBlacklistCandidate" style="display: flex; align-items: center; justify-content: center; z-index: 1050; padding: 1rem;">
+  <div class="modal-content animate-fade-in" style="max-width: 480px; width: 100%; border-radius: 12px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.2); display: flex; flex-direction: column;">
+    
+    <div class="modal-header" style="background-color: white; border-bottom: 1px solid #e2e8f0; padding: 1.25rem 1.5rem;">
+      <div class="modal-title-group" style="align-items: flex-start;">
+        <div class="candidate-avatar-lg" style="background: #e0f2fe; color: #0284c7; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+          <i class="fas fa-undo" style="font-size: 1.25rem;"></i>
+        </div>
+        <div>
+          <h2 style="color: #0f172a; font-size: 1.25rem; font-weight: 600; margin: 0 0 0.25rem 0;">Remove from Blacklist</h2>
+          <p class="modal-subtitle" style="color: #64748b; font-size: 0.875rem; margin: 0; line-height: 1.4;">
+            Are you sure you want to remove <strong>{{ removingBlacklistCandidate.candidate_name }}</strong> from the blacklist?
+          </p>
+        </div>
+      </div>
+      <div class="modal-header-right" style="align-self: flex-start; margin-top: -0.25rem;">
+        <button class="btn-icon" (click)="closeRemoveBlacklistModal()" style="color: #64748b; padding: 0.5rem; border-radius: 50%; transition: all 0.2s;" onmouseover="this.style.background='#f1f5f9'; this.style.color='#0f172a'" onmouseout="this.style.background='transparent'; this.style.color='#64748b'">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="modal-body" style="padding: 1.5rem; background: white;">
+      <p style="margin: 0; color: #334155; font-size: 0.875rem; line-height: 1.5;">
+        This action will restore the candidate to their previous status in the active pipeline, making them eligible for recruitment flows again.
+      </p>
+    </div>
+
+    <div class="modal-footer" style="padding: 1rem 1.5rem; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 0.75rem;">
+      <button class="btn outline-btn" (click)='closeRemoveBlacklistModal()' [disabled]="isSubmittingRemoveBlacklist" style="padding: 0.5rem 1.25rem; font-weight: 500; font-size: 0.875rem; border: 1px solid #cbd5e1; color: #475569; background: white; border-radius: 6px; transition: all 0.2s; cursor: pointer;">
+        Cancel
+      </button>
+      <button class="btn btn-primary" (click)="confirmRemoveBlacklist()" [disabled]="isSubmittingRemoveBlacklist" style="background: #0ea5e9; color: white; border: none; padding: 0.5rem 1.25rem; border-radius: 6px; font-weight: 500; font-size: 0.875rem; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; min-width: 140px;">
+        <ng-container *ngIf="!isSubmittingRemoveBlacklist">
+          Yes, Remove
+        </ng-container>
+        <ng-container *ngIf="isSubmittingRemoveBlacklist">
+          <i class="fas fa-circle-notch fa-spin"></i> Processing...
+        </ng-container>
+      </button>
     </div>
   </div>
 </div>

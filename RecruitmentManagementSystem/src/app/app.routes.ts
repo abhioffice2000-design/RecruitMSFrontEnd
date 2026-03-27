@@ -83,6 +83,11 @@ export const routes: Routes = [
           import('./candidate-portal/pages/candidate-dashboard/candidate-dashboard.component').then(m => m.CandidateDashboardComponent),
       },
       {
+        path: 'inbox',
+        loadComponent: () =>
+          import('./candidate-portal/pages/candidate-inbox/candidate-inbox.component').then(m => m.CandidateInboxComponent),
+      },
+      {
         path: 'jobs',
         loadComponent: () =>
           import('./candidate-portal/pages/candidate-job-search/candidate-job-search.component').then(m => m.CandidateJobSearchComponent),

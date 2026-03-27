@@ -6,6 +6,7 @@ import {
   MOCK_OFFERS,
   MOCK_DELEGATES
 } from './mock-data';
+import { buildMailBody } from './mail-templates';
 
 declare var $: any;
 
@@ -49,10 +50,15 @@ export class SoapService {
       const tupleArr = Array.isArray(tuples) ? tuples : [tuples];
       return tupleArr.map((t: any) => {
         const old = t.old || t;
-        // If entityName is provided, pick that sub-object; otherwise flatten
-        if (entityName && old[entityName]) {
-          return old[entityName];
+        if (!old) return {};
+        
+        // If entityName is provided, try exact match and PascalCase
+        if (entityName) {
+          if (old[entityName]) return old[entityName];
+          const capitalized = entityName.charAt(0).toUpperCase() + entityName.slice(1);
+          if (old[capitalized]) return old[capitalized];
         }
+
         // Try to find the first child object (the entity)
         const keys = Object.keys(old);
         for (const key of keys) {
@@ -60,7 +66,7 @@ export class SoapService {
             return old[key];
           }
         }
-        return old;
+        return old || {};
       });
     } catch (e) {
       console.warn('[SoapService] parseTuples error:', e);
@@ -848,23 +854,29 @@ export class SoapService {
   //  CANDIDATES
   // ═══════════════════════════════════════════════════════
 
+  /**
+   * Fetch all candidates using the standard metadata service.
+   * Resilient to casing thanks to parseTuples auto-discovery.
+   */
   getCandidates(): Promise<Record<string, string>[]> {
     if (this.useMockData) return Promise.resolve(MOCK_CANDIDATES);
     return this.call('GetTs_candidatesObjects', {
       fromCandidate_id: '0', toCandidate_id: 'zzzzzzzzzz'
-    }).then(resp => this.parseTuples(resp, 'ts_candidates'));
+    }).then(resp => this.parseTuples(resp));
   }
+
 
   getAllCandidates(): Promise<Record<string, string>[]> {
     if (this.useMockData) return Promise.resolve(MOCK_CANDIDATES);
-    // Use the exact SOAP structure provided by the user
+    // Use the exact SOAP structure provided by the user, but request all fields including temps
+    // by not restricting qValues, or if needed, specifying them. With qValues="" it should get everything.
     const soapXml = `<SOAP:Envelope xmlns:SOAP="http://schemas.xmlsoap.org/soap/envelope/">
 <SOAP:Body>
 <GetAllCandidates xmlns="http://schemas.cordys.com/RMST1DatabaseMetadata" preserveSpace="no" qAccess="0" qValues="" />
 </SOAP:Body>
 </SOAP:Envelope>`;
     return this.call('GetAllCandidates', {}, 'http://schemas.cordys.com/RMST1DatabaseMetadata', soapXml)
-      .then(resp => this.parseTuples(resp, 'ts_candidates'));
+      .then(resp => this.parseTuples(resp));
   }
 
   getAllCandidatesCount(): Promise<number> {
@@ -1013,8 +1025,269 @@ export class SoapService {
     });
   }
 
+  // ═══════════════════════════════════════════════════════
+  //  CANDIDATE BLACKLIST
+  // ═══════════════════════════════════════════════════════
+
   /**
-   * Try Cordys `HashPassword` for `ts_accounts.password_hash`.
+   * Blacklist a candidate for a given duration.
+   * Stores metadata in temp fields on ts_candidates:
+   *   temp1 = 'BLACKLISTED'
+   *   temp2 = expiry ISO date (or '9999-12-31' for FOREVER)
+   *   temp3 = reason text
+   */
+  async blacklistCandidate(
+    candidate: Record<string, any>,
+    durationMonths: number | 'FOREVER',
+    reason: string = 'Hired but did not join'
+  ): Promise<any> {
+    if (this.useMockData) return Promise.resolve({ success: true });
+
+    const cid = candidate['candidate_id'] || candidate['Candidate_id'] || (candidate['_raw'] ? (candidate['_raw']['candidate_id'] || candidate['_raw']['Candidate_id']) : null);
+    if (!cid) throw new Error('Candidate ID is missing');
+
+    const fresh = await this.getCandidateById(cid);
+    if (!fresh) throw new Error(`Candidate not found: ${cid}`);
+    const oldRow = this.buildCandidateRow(fresh);
+    
+    let expiryIso: string;
+    if (durationMonths === 'FOREVER') {
+      expiryIso = '9999-12-31T00:00:00.000Z';
+    } else {
+      const d = new Date();
+      d.setMonth(d.getMonth() + Number(durationMonths));
+      expiryIso = d.toISOString();
+    }
+
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+    return this.call('UpdateTs_candidates', {
+      tuple: {
+        old: {
+          ts_candidates: {
+            '@qConstraint': '0',
+            candidate_id: oldRow.candidate_id
+          }
+        },
+        'new': {
+          ts_candidates: {
+            '@qAccess': '0',
+            '@qConstraint': '0',
+            '@qInit': '0',
+            '@qValues': '',
+            candidate_id: oldRow.candidate_id,
+            first_name: oldRow.first_name,
+            last_name: oldRow.last_name,
+            email: oldRow.email,
+            phone: oldRow.phone,
+            linkedin_url: oldRow.linkedin_url || '',
+            experience_years: oldRow.experience_years || '',
+            location: oldRow.location || '',
+            created_at: oldRow.created_at || '',
+            created_by: oldRow.created_by || '',
+            updated_at: now,
+            updated_by: oldRow.updated_by || 'Admin',
+            temp1: 'BLACKLISTED',
+            temp2: expiryIso,
+            temp3: reason || '',
+            temp4: oldRow.temp4 || '',
+            temp5: oldRow.temp5 || ''
+          }
+        }
+      }
+    });
+  }
+
+  async removeFromBlacklist(candidate: Record<string, any>): Promise<any> {
+    if (this.useMockData) return Promise.resolve({ success: true });
+
+    const cid = candidate['candidate_id'] || candidate['Candidate_id'] || (candidate['_raw'] ? (candidate['_raw']['candidate_id'] || candidate['_raw']['Candidate_id']) : null);
+    if (!cid) throw new Error('Candidate ID is missing');
+
+    const fresh = await this.getCandidateById(cid);
+    if (!fresh) throw new Error(`Candidate not found: ${cid}`);
+    const oldRow = this.buildCandidateRow(fresh);
+    
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+    return this.call('UpdateTs_candidates', {
+      tuple: {
+        old: {
+          ts_candidates: {
+            '@qConstraint': '0',
+            candidate_id: oldRow.candidate_id
+          }
+        },
+        'new': {
+          ts_candidates: {
+            '@qAccess': '0',
+            '@qConstraint': '0',
+            '@qInit': '0',
+            '@qValues': '',
+            candidate_id: oldRow.candidate_id,
+            first_name: oldRow.first_name,
+            last_name: oldRow.last_name,
+            email: oldRow.email,
+            phone: oldRow.phone,
+            linkedin_url: oldRow.linkedin_url || '',
+            experience_years: oldRow.experience_years || '',
+            location: oldRow.location || '',
+            created_at: oldRow.created_at || '',
+            created_by: oldRow.created_by || '',
+            updated_at: now,
+            updated_by: oldRow.updated_by || 'Admin',
+            temp1: '',
+            temp2: '',
+            temp3: '',
+            temp4: oldRow.temp4 || '',
+            temp5: oldRow.temp5 || ''
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * Internal helper to build a candidate row object with proper field names
+   * from either the component's flat row or the raw DB record.
+   */
+  private buildCandidateRow(c: Record<string, any>): any {
+    const raw = c['_raw'] || c;
+    
+    // Case-insensitive lookup helper
+    const getVal = (key: string): string => {
+      const keys = [key, key.toLowerCase(), key.charAt(0).toUpperCase() + key.slice(1).toLowerCase(), key.toUpperCase()];
+      for (const k of keys) {
+        if (c[k] !== undefined && c[k] !== null) return String(c[k]);
+        if (raw[k] !== undefined && raw[k] !== null) return String(raw[k]);
+      }
+      return '';
+    };
+
+    return {
+      candidate_id: getVal('candidate_id'),
+      first_name: getVal('first_name'),
+      last_name: getVal('last_name'),
+      email: getVal('email'),
+      phone: getVal('phone'),
+      experience_years: getVal('experience_years') || '0',
+      location: getVal('location'),
+      linkedin_url: getVal('linkedin_url'),
+      created_at: getVal('created_at'),
+      created_by: getVal('created_by'),
+      updated_at: getVal('updated_at'),
+      updated_by: getVal('updated_by'),
+      temp1: getVal('temp1'),
+      temp2: getVal('temp2'),
+      temp3: getVal('temp3'),
+      temp4: getVal('temp4'),
+      temp5: getVal('temp5')
+    };
+  }
+
+  private escapeXml(val: unknown): string {
+    const apos = '&apos;';
+    return String(val ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", apos);
+  }
+
+  /**
+   * Upload a candidate document (E-Sign, Aadhar, PAN, etc.) as Base64 data URL
+   */
+  async uploadCandidateDocument(
+    candidateId: string,
+    documentType: string,
+    base64Data: string
+  ): Promise<any> {
+    if (this.useMockData) return Promise.resolve({ success: true });
+
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+    return this.call('UpdateTs_candidate_documents', {
+      tuple: {
+        'new': {
+          ts_candidate_documents: {
+            '@qAccess': '0',
+            '@qConstraint': '0',
+            '@qInit': '0',
+            '@qValues': '',
+            candidate_id: candidateId,
+            document_type: documentType,
+            file_path: 'Stored in temp columns', // Fallback to avoid null constraint errors
+            uploaded_at: now,
+            created_at: now,
+            created_by: candidateId,
+            updated_at: now,
+            updated_by: candidateId,
+            temp1: base64Data,
+            temp2: '',
+            temp3: '',
+            temp4: '',
+            temp5: ''
+          }
+        }
+      }
+    });
+  }
+
+  async getCandidateDocuments(candidateId: string): Promise<any[]> {
+    if (this.useMockData) return [];
+    try {
+      const response = await this.call('GetTs_candidate_documentsObjectsForcandidate_id', {
+        Candidate_id: candidateId
+      });
+
+      const tuples = response?.tuple;
+      if (!tuples) return [];
+
+      const items = Array.isArray(tuples) ? tuples : [tuples];
+      return items.map((t: any) => t.old?.ts_candidate_documents || t.new?.ts_candidate_documents || t.ts_candidate_documents || {});
+    } catch (e) {
+      console.error('Failed to get candidate documents:', e);
+      return [];
+    }
+  }
+
+  async requestCandidateDocuments(candidate: any, hrEmail: string, jobTitle: string): Promise<void> {
+    if (this.useMockData) return;
+    const cid = candidate.candidate_id || candidate.Candidate_id;
+    const email = candidate.candidate_email || candidate.Email || candidate.email;
+    const name = candidate.candidate_name || `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim() || 'Candidate';
+
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+    // 1. Create a request marker in ts_candidate_documents
+    await this.call('UpdateTs_candidate_documents', {
+      tuple: {
+        'new': {
+          ts_candidate_documents: {
+            candidate_id: cid,
+            document_type: 'DOCUMENT_REQUEST',
+            file_path: 'HR requested documents',
+            uploaded_at: now,
+            created_at: now,
+            created_by: hrEmail,
+            temp1: `HR (${hrEmail}) has requested mandatory documents for the ${jobTitle} position.`,
+            temp2: 'HR_REQUEST'
+          }
+        }
+      }
+    });
+
+    // 2. Send Email
+    const mail = buildMailBody('MANDATORY_DOCUMENTS_REQUESTED', {
+      candidateName: name,
+      jobTitle: jobTitle,
+      portalUrl: window.location.origin + '/login'
+    });
+    await this.sendAllMailsBPM(email, mail.subject, mail.body);
+  }
+
+  /**
    * If the service returns nothing (JSON/XML shape differs per environment), **falls back to the plain password**
    * so inserts still succeed; Cordys SSO login uses the org password, not this column.
    */

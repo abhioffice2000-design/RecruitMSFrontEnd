@@ -14,7 +14,8 @@ export type MailEvent =
   | 'OFFER_SENT'
   | 'OFFER_ACCEPTED'
   | 'OFFER_REJECTED'
-  | 'OFFER_ARGUED';
+  | 'OFFER_ARGUED'
+  | 'MANDATORY_DOCUMENTS_REQUESTED';
 
 export type MailTemplateData = Record<string, any>;
 
@@ -383,6 +384,22 @@ export function buildMailBody(event: MailEvent, data: MailTemplateData): { subje
         noteLine: 'HR will review and provide the final outcome.'
       });
       return { subject, body: baseEmailHtml('Offer Argued', contentHtml) };
+    }
+
+    case 'MANDATORY_DOCUMENTS_REQUESTED': {
+      const subject = `Action Required: Please upload mandatory documents — ${data['jobTitle'] || 'Job'}`;
+      const contentHtml = standardMailContent({
+        name: data['candidateName'],
+        introLines: [
+          'HR has requested you to upload the <b>mandatory documents</b> required for your onboarding process.',
+          'Please log in to the <b>Candidate Portal</b> and visit the <b>Inbox</b> or <b>My Applications</b> section to upload the following:',
+          '<ul><li>Offer Letter E-Sign</li><li>Aadhar Card</li><li>PAN Card</li><li>Last Salary Slip</li></ul>'
+        ],
+        ctaUrl: data['portalUrl'],
+        ctaText: 'Go to Candidate Portal',
+        noteLine: 'Completing this step promptly will help accelerate your onboarding.'
+      });
+      return { subject, body: baseEmailHtml('Document Upload Request', contentHtml) };
     }
 
     default: {
