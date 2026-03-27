@@ -101,8 +101,8 @@ import { downloadCsvLines } from '../../shared/export/csv-export';
           <div class="chart-section" style="flex: 1;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <h3 style="margin: 0;">Application Breakdown</h3>
-              <select [(ngModel)]="selectedRole" (change)="onRoleChange()" style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; color: #334155; outline: none; cursor: pointer;">
-                <option *ngFor="let role of availableRoles" [value]="role">{{role}}</option>
+              <select [(ngModel)]="selectedRoleId" (change)="onRoleChange()" style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; color: #334155; outline: none; cursor: pointer;">
+                <option *ngFor="let role of availableRoles" [value]="role.id">{{role.title}}</option>
               </select>
             </div>
             <div style="display: flex; align-items: center; justify-content: space-around; padding: 20px 0;">
@@ -136,14 +136,7 @@ import { downloadCsvLines } from '../../shared/export/csv-export';
                       </div>
                       <strong style="color: #1e293b; font-size: 15px">{{currentPieData.inProgress}}</strong>
                    </div>
-                   <div style="display: flex; align-items: center; justify-content: space-between; gap: 24px;">
-                      <div style="display: flex; align-items: center; gap: 10px;">
-                         <span style="width: 14px; height: 14px; border-radius: 4px; background: #f59e0b;"></span> 
-                         <span style="font-size: 14px; color: #334155; font-weight: 500;">Candidates Opt Out</span>
-                      </div>
-                      <strong style="color: #1e293b; font-size: 15px">{{currentPieData.optOut}}</strong>
-                   </div>
-                </div>
+                 </div>
             </div>
           </div>
         </div>
@@ -296,7 +289,47 @@ export class DashboardTab implements OnInit {
     this.fetchCurrentlyInProgressCandidates();
     this.fetchRecentlyHiredCandidates();
     this.fetchMonthlyStats(this.selectedYear);
-   // debugger;
+    this.fetchAllPostedJobs();
+  }
+
+  fetchJobBreakdownData(reqId: string) {
+    const appliedPromise = this.hs.ajax(
+      'GetTotalAppliedCandiatesCountByRequistionId',
+      'http://schemas.cordys.com/RMST1DatabaseMetadata',
+      { Requisition_id: reqId }
+    );
+    const inProgressPromise = this.hs.ajax(
+      'GetTotalApplicationsCountByRequistionId',
+      'http://schemas.cordys.com/RMST1DatabaseMetadata',
+      { Requisition_id: reqId }
+    );
+    const selectedPromise = this.hs.ajax(
+      'GetAllSelectedCandidatesCountByRequistionId',
+      'http://schemas.cordys.com/RMST1DatabaseMetadata',
+      { Requisition_id: reqId }
+    );
+
+    Promise.all([appliedPromise, inProgressPromise, selectedPromise]).then(([appliedResp, inProgressResp, selectedResp]: any[]) => {
+      console.log('Breakdown responses:', { appliedResp, inProgressResp, selectedResp });
+      try {
+        const appliedCount = Number(appliedResp.tuple?.old?.ts_applications?.count || 0);
+        const inProgressCount = Number(inProgressResp.tuple?.old?.ts_applications?.count || 0);
+        // Assuming selected count also uses ts_offers table as per previous implementation
+        const selectedCount = Number(selectedResp.tuple?.old?.ts_offers?.count || selectedResp.tuple?.old?.ts_applications?.count || 0);
+        
+        this.currentPieData = {
+          applied: appliedCount,
+          selected: selectedCount,
+          inProgress: inProgressCount,
+          optOut: 0,
+          total: appliedCount + inProgressCount + selectedCount
+        };
+      } catch (e) {
+        console.error('Error parsing breakdown data:', e);
+      }
+    }).catch(err => {
+      console.error('Error fetching job breakdown data:', err);
+    });
   }
 
   fetchTotalApplied() {
@@ -457,8 +490,8 @@ export class DashboardTab implements OnInit {
   }
 
   // --- Pie Chart Sector Data & Logic ---
-  selectedRole = 'All Roles';
-  availableRoles = ['All Roles', 'Frontend Developer', 'Backend Developer', 'UX Designer'];
+  selectedRoleId = 'all';
+  availableRoles: Array<{ id: string, title: string }> = [{ id: 'all', title: 'All Roles' }];
 
   pieDataByRole: Record<string, { total: number, applied: number, selected: number, inProgress: number, optOut: number }> = {
     'All Roles': { total: 412, applied: 185, selected: 82, inProgress: 104, optOut: 41 },
@@ -469,22 +502,53 @@ export class DashboardTab implements OnInit {
 
   currentPieData = this.pieDataByRole['All Roles'];
 
+  fetchAllPostedJobs() {
+    this.hs.ajax(
+      'GetAllPostedJobs',
+      'http://schemas.cordys.com/RMST1DatabaseMetadata',
+      {}
+    ).then((resp: any) => {
+      console.log('GetAllPostedJobs Response:', resp);
+      try {
+        const rawTuples = resp.tuple;
+        const tuples = rawTuples ? (Array.isArray(rawTuples) ? rawTuples : [rawTuples]) : [];
+        const jobs = tuples.map((t: any) => {
+          const item = t.old?.ts_job_requisitions || {};
+          const reqId = (typeof item.requisition_id === 'string') ? item.requisition_id : '';
+          const title = (typeof item.title === 'string') ? item.title : 'Untitled';
+          return { id: reqId, title };
+        }).filter(j => j.id !== '');
+        
+        this.availableRoles = [{ id: 'all', title: 'All Roles' }, ...jobs];
+      } catch (e) {
+        console.error('Error parsing GetAllPostedJobs:', e);
+      }
+    }).catch(err => {
+      console.error('Error fetching jobs:', err);
+    });
+  }
+
   onRoleChange() {
-    this.currentPieData = this.pieDataByRole[this.selectedRole] || this.pieDataByRole['All Roles'];
+    console.log('Selected Job Requisition ID:', this.selectedRoleId);
+    if (this.selectedRoleId === 'all') {
+      this.currentPieData = this.pieDataByRole['All Roles'];
+    } else {
+      // Fetch both applied and in-progress counts for this specific job
+      this.fetchJobBreakdownData(this.selectedRoleId);
+    }
   }
 
   getPieChartGradient() {
     const data = this.currentPieData;
-    const t = data.total;
+    const t = data.applied + data.inProgress + data.selected;
     if (t === 0) return 'none';
 
     // Calculate cumulative percentages for the conic-gradient
     const appliedPct = (data.applied / t) * 100;
     const inProgressPct = appliedPct + ((data.inProgress / t) * 100);
-    const selectedPct = inProgressPct + ((data.selected / t) * 100);
+    const selectedPct = 100; // Since Opt Out is hidden, the rest fills the remaining space
 
-    // The conic-gradient colors follow the order in the legend:
-    // Applied (Indigo) -> In Progress (Blue) -> Selected (Emerald) -> Opt Out (Orange)
-    return `conic-gradient(#6366f1 0% ${appliedPct}%, #3b82f6 ${appliedPct}% ${inProgressPct}%, #10b981 ${inProgressPct}% ${selectedPct}%, #f59e0b ${selectedPct}% 100%)`;
+    // Applied (Indigo) -> In Progress (Blue) -> Selected (Emerald)
+    return `conic-gradient(#6366f1 0% ${appliedPct}%, #3b82f6 ${appliedPct}% ${inProgressPct}%, #10b981 ${inProgressPct}% 100%)`;
   }
 }

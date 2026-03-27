@@ -72,3 +72,16 @@
     </div>
   </main>
 </div>
+
+<!-- Real-time Notifications Overlay -->
+<div class="rt-notification-container" *ngIf="currentNotification">
+  <div class="rt-notification-card" [class.new-app]="currentNotification.type === 'CANDIDATE_APPLIED'">
+    <div class="rt-icon">
+       <i [class]="currentNotification.type === 'CANDIDATE_APPLIED' ? 'fas fa-user-plus' : 'fas fa-info-circle'"></i>
+    </div>
+    <div class="rt-content">
+       <strong>Notification</strong>
+       <p>{{ currentNotification.message }}</p>
+    </div>
+  </div>
+</div>

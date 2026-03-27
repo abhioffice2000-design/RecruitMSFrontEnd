@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
+import { NotificationService } from '../../services/notification.service';
 import { SoapService } from '../../services/soap.service';
 import { buildMailBody } from '../../services/mail-templates';
 import { downloadCsvLines } from '../../shared/export/csv-export';
@@ -1507,7 +1509,13 @@ export class CandidatesTab implements OnInit {
     rows: Array<{ interviewerName: string; rating: string; recommendation: string; comments: string }>;
   }> = [];
 
-  constructor(private soap: SoapService, private router: Router) {}
+  private notifySub?: Subscription;
+
+  constructor(
+    private soap: SoapService,
+    private router: Router,
+    private notifyService: NotificationService
+  ) {}
 
   downloadResume(url: string | undefined): void {
     if (!url) return;
@@ -1533,7 +1541,20 @@ export class CandidatesTab implements OnInit {
     // Fallback for BPM DN when requisition owner / assignee cannot be resolved from DB.
     this.loggedInUserEmail =
       sessionStorage.getItem('loggedInUserEmail') || sessionStorage.getItem('loggedInUser') || '';
+    
+    // Listen for real-time application updates
+    this.notifySub = this.notifyService.notifications$.subscribe(notif => {
+      if (notif.type === 'CANDIDATE_APPLIED') {
+        console.log('[Candidates] New candidate applied. Reloading data...');
+        this.loadData();
+      }
+    });
+
     this.loadData();
+  }
+ 
+  ngOnDestroy(): void {
+    this.notifySub?.unsubscribe();
   }
 
   async loadData(): Promise<void> {
