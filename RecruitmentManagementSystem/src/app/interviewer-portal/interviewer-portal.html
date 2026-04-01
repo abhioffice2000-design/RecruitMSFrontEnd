@@ -298,12 +298,12 @@
           <div class="form-row">
             <div class="form-group">
               <label>Date</label>
-              <input type="date" [(ngModel)]="newSlot.date" class="form-input" [min]="minSlotDate" />
+              <input type="date" [(ngModel)]="newSlot.date" (ngModelChange)="onSlotDateChange()" class="form-input" [min]="minSlotDate" />
             </div>
             <div class="form-group">
               <label>Start Time</label>
               <select [(ngModel)]="newSlot.startTime" (ngModelChange)="onStartTimeChange()" class="form-input">
-                <option *ngFor="let t of startTimeOptions" [value]="t">{{ t }}</option>
+                <option *ngFor="let t of getStartTimeOptionsForSelectedDate(newSlot.date)" [value]="t">{{ t }}</option>
               </select>
             </div>
             <div class="form-group">
@@ -505,22 +505,80 @@
         </div>
       </div>
 
-      <!-- Star Rating -->
+      <!-- Weighted Ratings -->
       <div class="form-group">
-        <label>Rating (0–10)</label>
-        <div class="star-rating">
-          <button
-            *ngFor="let s of [1,2,3,4,5,6,7,8,9,10]"
-            class="star-btn"
-            [class.filled]="s <= feedbackForm.rating"
-            [class.hovered]="s <= hoveredStar && s > feedbackForm.rating"
-            (mouseenter)="hoveredStar = s"
-            (mouseleave)="hoveredStar = 0"
-            (click)="setRating(s)"
-          >
-            <i [class]="s <= feedbackForm.rating ? 'fas fa-star' : (s <= hoveredStar ? 'fas fa-star' : 'far fa-star')"></i>
-          </button>
-          <span class="rating-value">{{ feedbackForm.rating }}/10</span>
+        <label>Ratings (0–10)</label>
+
+        <div class="form-row" style="display:grid; grid-template-columns: 140px 1fr; gap: 10px; align-items:center; margin-top:10px;">
+          <div style="font-weight:600; color:#334155;">Technical</div>
+          <div class="star-rating">
+            <button
+              *ngFor="let s of [1,2,3,4,5,6,7,8,9,10]"
+              class="star-btn"
+              [class.filled]="s <= feedbackForm.technical"
+              [class.hovered]="s <= hoveredStar && s > feedbackForm.technical"
+              (mouseenter)="hoveredStar = s"
+              (mouseleave)="hoveredStar = 0"
+              (click)="setRating('technical', s)"
+            >
+              <i [class]="s <= feedbackForm.technical ? 'fas fa-star' : (s <= hoveredStar ? 'fas fa-star' : 'far fa-star')"></i>
+            </button>
+            <span class="rating-value">{{ feedbackForm.technical }}/10</span>
+          </div>
+        </div>
+
+        <div class="form-row" style="display:grid; grid-template-columns: 140px 1fr; gap: 10px; align-items:center; margin-top:10px;">
+          <div style="font-weight:600; color:#334155;">Aptitude</div>
+          <div class="star-rating">
+            <button
+              *ngFor="let s of [1,2,3,4,5,6,7,8,9,10]"
+              class="star-btn"
+              [class.filled]="s <= feedbackForm.aptitude"
+              [class.hovered]="s <= hoveredStar && s > feedbackForm.aptitude"
+              (mouseenter)="hoveredStar = s"
+              (mouseleave)="hoveredStar = 0"
+              (click)="setRating('aptitude', s)"
+            >
+              <i [class]="s <= feedbackForm.aptitude ? 'fas fa-star' : (s <= hoveredStar ? 'fas fa-star' : 'far fa-star')"></i>
+            </button>
+            <span class="rating-value">{{ feedbackForm.aptitude }}/10</span>
+          </div>
+        </div>
+
+        <div class="form-row" style="display:grid; grid-template-columns: 140px 1fr; gap: 10px; align-items:center; margin-top:10px;">
+          <div style="font-weight:600; color:#334155;">Communication</div>
+          <div class="star-rating">
+            <button
+              *ngFor="let s of [1,2,3,4,5,6,7,8,9,10]"
+              class="star-btn"
+              [class.filled]="s <= feedbackForm.communication"
+              [class.hovered]="s <= hoveredStar && s > feedbackForm.communication"
+              (mouseenter)="hoveredStar = s"
+              (mouseleave)="hoveredStar = 0"
+              (click)="setRating('communication', s)"
+            >
+              <i [class]="s <= feedbackForm.communication ? 'fas fa-star' : (s <= hoveredStar ? 'fas fa-star' : 'far fa-star')"></i>
+            </button>
+            <span class="rating-value">{{ feedbackForm.communication }}/10</span>
+          </div>
+        </div>
+
+        <div class="form-row" style="display:grid; grid-template-columns: 140px 1fr; gap: 10px; align-items:center; margin-top:10px;">
+          <div style="font-weight:600; color:#334155;">Culture</div>
+          <div class="star-rating">
+            <button
+              *ngFor="let s of [1,2,3,4,5,6,7,8,9,10]"
+              class="star-btn"
+              [class.filled]="s <= feedbackForm.culture"
+              [class.hovered]="s <= hoveredStar && s > feedbackForm.culture"
+              (mouseenter)="hoveredStar = s"
+              (mouseleave)="hoveredStar = 0"
+              (click)="setRating('culture', s)"
+            >
+              <i [class]="s <= feedbackForm.culture ? 'fas fa-star' : (s <= hoveredStar ? 'fas fa-star' : 'far fa-star')"></i>
+            </button>
+            <span class="rating-value">{{ feedbackForm.culture }}/10</span>
+          </div>
         </div>
       </div>
 

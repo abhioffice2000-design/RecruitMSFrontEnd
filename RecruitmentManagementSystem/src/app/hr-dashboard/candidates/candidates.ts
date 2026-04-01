@@ -309,12 +309,23 @@ interface CandidateRow {
           <div class="pipeline-feedback-panel" *ngIf="pipelineInterviewFeedback.length > 0">
             <h4 class="pipeline-feedback-title"><i class="fas fa-clipboard-check"></i> Interviewer feedback</h4>
             <div class="pipeline-feedback-block" *ngFor="let block of pipelineInterviewFeedback">
-              <div class="pipeline-feedback-block-head">{{ block.label }} <span class="fb-id">#{{ block.interview_id }}</span></div>
+              <div class="pipeline-feedback-block-head">
+                {{ block.label }} <span class="fb-id">#{{ block.interview_id }}</span>
+                <span class="fb-score" *ngIf="block.weightedAvg10">
+                  Score <strong>{{ block.weightedAvg10 }}</strong>/10
+                </span>
+              </div>
               <div class="pipeline-feedback-row" *ngFor="let r of block.rows">
                 <div class="fb-who"><i class="fas fa-user-tie"></i> {{ r.interviewerName }}</div>
                 <div class="fb-meta">
-                  <span class="fb-rating" *ngIf="r.rating"><i class="fas fa-star"></i> {{ r.rating }}/10</span>
+                  <span class="fb-rating" *ngIf="r.weighted"><i class="fas fa-star"></i> {{ r.weighted }}/10</span>
                   <span class="fb-rec" *ngIf="r.recommendation">{{ r.recommendation }}</span>
+                </div>
+                <div class="fb-breakdown" *ngIf="r.technical || r.aptitude || r.communication || r.culture">
+                  <span *ngIf="r.technical"><strong>T</strong>: {{ r.technical }}</span>
+                  <span *ngIf="r.aptitude"><strong>A</strong>: {{ r.aptitude }}</span>
+                  <span *ngIf="r.communication"><strong>C</strong>: {{ r.communication }}</span>
+                  <span *ngIf="r.culture"><strong>Cu</strong>: {{ r.culture }}</span>
                 </div>
                 <p class="fb-comments" *ngIf="r.comments">{{ r.comments }}</p>
               </div>
@@ -703,11 +714,11 @@ interface CandidateRow {
           <div class="workflow-actions"
                *ngIf="pipelineCandidate
                  && pipelineCandidate.stage_name
-                 && (pipelineCandidate.stage_name.toLowerCase().includes('hold') || pipelineCandidate.stage_name.toLowerCase().includes('argued'))
+                 && (pipelineCandidate.stage_name.toLowerCase().includes('hold') || pipelineCandidate.stage_name.toLowerCase().includes('argued') || pipelineCandidate.stage_name.toLowerCase().includes('negotiat'))
                  && !isArgueResolving">
             <div class="workflow-title">Resolve Argued Offer</div>
             <div class="hint" style="margin-bottom: 10px;">
-              Candidate argued this offer. Finalize outcome for application
+              Candidate negotiated this offer. Finalize outcome for application
               <strong>{{ pipelineCandidate.application_id }}</strong>.
             </div>
             <div class="workflow-btns">
@@ -723,7 +734,7 @@ interface CandidateRow {
           <div class="workflow-actions"
                *ngIf="pipelineCandidate
                  && pipelineCandidate.stage_name
-                 && (pipelineCandidate.stage_name.toLowerCase().includes('hold') || pipelineCandidate.stage_name.toLowerCase().includes('argued'))
+                 && (pipelineCandidate.stage_name.toLowerCase().includes('hold') || pipelineCandidate.stage_name.toLowerCase().includes('argued') || pipelineCandidate.stage_name.toLowerCase().includes('negotiat'))
                  && isArgueResolving">
             <div class="workflow-title">Resolving...</div>
             <div class="hint">Final decision in progress.</div>
@@ -1044,6 +1055,19 @@ interface CandidateRow {
       color: #334155;
       margin-bottom: 8px;
       .fb-id { font-weight: 500; color: #94a3b8; font-size: 11px; margin-left: 6px; }
+      .fb-score {
+        margin-left: 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 10px;
+        border-radius: 999px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        color: #0f172a;
+        font-weight: 700;
+        font-size: 12px;
+      }
     }
     .pipeline-feedback-row {
       padding: 10px 12px;
@@ -1057,6 +1081,15 @@ interface CandidateRow {
     .fb-rating { font-weight: 600; color: #b45309; i { margin-right: 4px; } }
     .fb-rec { padding: 2px 8px; background: #e0f2fe; color: #0369a1; border-radius: 6px; font-weight: 600; }
     .fb-comments { margin: 8px 0 0; font-size: 13px; color: #334155; line-height: 1.45; white-space: pre-wrap; }
+    .fb-breakdown {
+      margin-top: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: 12px;
+      color: #475569;
+      strong { color: #0f172a; }
+    }
 
     .pipeline-stages { position: relative; padding-bottom: 4px; }
     .pipeline-journey-head {
@@ -1710,7 +1743,18 @@ export class CandidatesTab implements OnInit {
   pipelineInterviewFeedback: Array<{
     interview_id: string;
     label: string;
-    rows: Array<{ interviewerName: string; rating: string; recommendation: string; comments: string }>;
+    weightedAvg10: string;
+    rows: Array<{
+      interviewerName: string;
+      rating: string;
+      recommendation: string;
+      comments: string;
+      technical: string;
+      aptitude: string;
+      communication: string;
+      culture: string;
+      weighted: string;
+    }>;
   }> = [];
 
   private notifySub?: Subscription;
@@ -3041,13 +3085,35 @@ export class CandidatesTab implements OnInit {
     Array<{
       interview_id: string;
       label: string;
-      rows: Array<{ interviewerName: string; rating: string; recommendation: string; comments: string }>;
+      weightedAvg10: string;
+      rows: Array<{
+        interviewerName: string;
+        rating: string;
+        recommendation: string;
+        comments: string;
+        technical: string;
+        aptitude: string;
+        communication: string;
+        culture: string;
+        weighted: string;
+      }>;
     }>
   > {
     const blocks: Array<{
       interview_id: string;
       label: string;
-      rows: Array<{ interviewerName: string; rating: string; recommendation: string; comments: string }>;
+      weightedAvg10: string;
+      rows: Array<{
+        interviewerName: string;
+        rating: string;
+        recommendation: string;
+        comments: string;
+        technical: string;
+        aptitude: string;
+        communication: string;
+        culture: string;
+        weighted: string;
+      }>;
     }> = [];
 
     for (const iv of interviews || []) {
@@ -3063,8 +3129,27 @@ export class CandidatesTab implements OnInit {
       if (!feedbackRows?.length) continue;
 
       const label = `${iv['interview_type'] || '?'} · Round ${iv['round_number'] ?? '?'}`;
-      const rows: Array<{ interviewerName: string; rating: string; recommendation: string; comments: string }> =
-        [];
+      const rows: Array<{
+        interviewerName: string;
+        rating: string;
+        recommendation: string;
+        comments: string;
+        technical: string;
+        aptitude: string;
+        communication: string;
+        culture: string;
+        weighted: string;
+      }> = [];
+
+      const toNum = (v: unknown): number => {
+        const n = Number.parseFloat(String(v ?? '').trim());
+        return Number.isFinite(n) ? n : 0;
+      };
+      const weighted10 = (tech: number, apt: number, comm: number, cult: number): number =>
+        Math.round(((tech * 0.4) + (apt * 0.4) + (comm * 0.1) + (cult * 0.1)) * 10) / 10;
+
+      let sumWeighted = 0;
+      let weightedCount = 0;
 
       for (const fr of feedbackRows) {
         const uid = String(fr['interviewer_id'] || fr['Interviewer_id'] || '').trim();
@@ -3080,15 +3165,32 @@ export class CandidatesTab implements OnInit {
             /* keep id */
           }
         }
+        const tech = toNum(fr['temp1'] ?? fr['Temp1'] ?? fr['technical'] ?? '');
+        const apt = toNum(fr['temp2'] ?? fr['Temp2'] ?? fr['aptitude'] ?? '');
+        const comm = toNum(fr['temp3'] ?? fr['Temp3'] ?? fr['communication'] ?? '');
+        const cult = toNum(fr['temp4'] ?? fr['Temp4'] ?? fr['culture'] ?? '');
+        const legacyRating = toNum(fr['rating'] ?? '');
+        const hasCategory = tech > 0 || apt > 0 || comm > 0 || cult > 0;
+        const w = hasCategory ? weighted10(tech, apt, comm, cult) : (Math.round(legacyRating * 10) / 10);
+
+        sumWeighted += w;
+        weightedCount += 1;
+
         rows.push({
           interviewerName,
           rating: String(fr['rating'] ?? ''),
           recommendation: String(fr['recommendation'] ?? ''),
-          comments: String(fr['comments'] ?? '')
+          comments: String(fr['comments'] ?? ''),
+          technical: tech ? String(tech) : '',
+          aptitude: apt ? String(apt) : '',
+          communication: comm ? String(comm) : '',
+          culture: cult ? String(cult) : '',
+          weighted: w ? String(w) : ''
         });
       }
 
-      blocks.push({ interview_id: iid, label, rows });
+      const avg = weightedCount ? Math.round((sumWeighted / weightedCount) * 10) / 10 : 0;
+      blocks.push({ interview_id: iid, label, weightedAvg10: avg ? String(avg) : '', rows });
     }
 
     return blocks;

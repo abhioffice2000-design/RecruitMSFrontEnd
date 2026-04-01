@@ -29,7 +29,8 @@ interface AppRow {
     createdBy: string;
     updatedAt: string;
     updatedBy: string;
-    arguedReason: string;
+    negotiatedReason: string;
+    negotiationCount: number;
   } | null;
 }
 
@@ -136,8 +137,13 @@ interface AppRow {
               <button class="btn-reject" (click)="rejectOffer(app)" [disabled]="app.offer.status !== 'SENT'">
                 <i class="fas fa-times"></i> Decline
               </button>
-              <button class="btn-argue" (click)="openArgueOfferModal(app)" [disabled]="app.offer.status !== 'SENT'">
-                <i class="fas fa-scale-balanced"></i> Argue
+              <button
+                class="btn-negotiate"
+                (click)="openNegotiateOfferModal(app)"
+                [disabled]="app.offer.status !== 'SENT' || (app.offer.negotiationCount || 0) >= 3"
+                [title]="(app.offer.negotiationCount || 0) >= 3 ? 'Negotiation limit reached (max 3)' : 'Negotiate'"
+              >
+                <i class="fas fa-scale-balanced"></i> Negotiate
               </button>
             </div>
           </div>
@@ -165,49 +171,52 @@ interface AppRow {
               <i class="fas fa-sync-alt"></i> Updated: {{ formatDate(app.offer.updatedAt) }} <span *ngIf="app.offer.updatedBy">({{ app.offer.updatedBy }})</span>
             </div>
           </div>
-          <div class="offer-argued-banner" *ngIf="app.offer && app.offer.status === 'ARGUED'">
-            <i class="fas fa-hourglass-half"></i> You argued this offer · HR review pending
+          <div class="offer-negotiated-banner" *ngIf="app.offer && (app.offer.status === 'NEGOTIATED' || app.offer.status === 'ARGUED')">
+            <i class="fas fa-hourglass-half"></i> You negotiated this offer · HR review pending
             <div class="offer-details" style="margin-top:8px; display:block; color: inherit;">
               <i class="fas fa-user-edit"></i> Created: {{ formatDate(app.offer.createdAt) }} <span *ngIf="app.offer.createdBy">({{ app.offer.createdBy }})</span>
               &nbsp;·&nbsp;
               <i class="fas fa-sync-alt"></i> Updated: {{ formatDate(app.offer.updatedAt) }} <span *ngIf="app.offer.updatedBy">({{ app.offer.updatedBy }})</span>
+            </div>
+            <div class="offer-details" style="margin-top:6px; display:block; color: inherit;">
+              <i class="fas fa-repeat"></i> Negotiations used: {{ app.offer.negotiationCount || 0 }}/3
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="modal-overlay" *ngIf="showArgueOfferModal" (click)="closeArgueOfferModal()">
+    <div class="modal-overlay" *ngIf="showNegotiateOfferModal" (click)="closeNegotiateOfferModal()">
       <div class="modal-card" (click)="$event.stopPropagation()">
         <div class="modal-header">
-          <h3><i class="fas fa-scale-balanced"></i> Argue Offer</h3>
-          <button type="button" class="modal-close" (click)="closeArgueOfferModal()" [disabled]="argueOfferSubmitting">
+          <h3><i class="fas fa-scale-balanced"></i> Negotiate Offer</h3>
+          <button type="button" class="modal-close" (click)="closeNegotiateOfferModal()" [disabled]="negotiateOfferSubmitting">
             <i class="fas fa-times"></i>
           </button>
         </div>
-        <p class="modal-subtitle" *ngIf="argueOfferTargetApp">
-          Share why you want changes for <strong>{{ argueOfferTargetApp.jobTitle }}</strong>.
+        <p class="modal-subtitle" *ngIf="negotiateOfferTargetApp">
+          Share what you want to negotiate for <strong>{{ negotiateOfferTargetApp.jobTitle }}</strong>.
         </p>
         <textarea
-          class="argue-textarea"
-          [(ngModel)]="argueOfferReason"
-          [disabled]="argueOfferSubmitting"
+          class="negotiate-textarea"
+          [(ngModel)]="negotiateOfferReason"
+          [disabled]="negotiateOfferSubmitting"
           maxlength="1000"
           placeholder="Example: I request a salary revision based on my experience and current market standards."
         ></textarea>
-        <div class="argue-char-count">{{ argueOfferReason.length }}/1000</div>
+        <div class="negotiate-char-count">{{ negotiateOfferReason.length }}/1000</div>
         <div class="modal-actions">
-          <button type="button" class="btn-cancel" (click)="closeArgueOfferModal()" [disabled]="argueOfferSubmitting">
+          <button type="button" class="btn-cancel" (click)="closeNegotiateOfferModal()" [disabled]="negotiateOfferSubmitting">
             Cancel
           </button>
           <button
             type="button"
             class="btn-submit"
-            (click)="submitArgueOffer()"
-            [disabled]="argueOfferSubmitting || !argueOfferReason.trim()"
+            (click)="submitNegotiateOffer()"
+            [disabled]="negotiateOfferSubmitting || !negotiateOfferReason.trim()"
           >
-            <i class="fas" [ngClass]="argueOfferSubmitting ? 'fa-spinner fa-spin' : 'fa-paper-plane'"></i>
-            {{ argueOfferSubmitting ? 'Submitting...' : 'Submit Reason' }}
+            <i class="fas" [ngClass]="negotiateOfferSubmitting ? 'fa-spinner fa-spin' : 'fa-paper-plane'"></i>
+            {{ negotiateOfferSubmitting ? 'Submitting...' : 'Submit Request' }}
           </button>
         </div>
       </div>
@@ -354,10 +363,10 @@ interface AppRow {
     .btn-upload { padding: 8px 18px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; i { margin-right: 4px; } &:hover { background: #1d4ed8; } &:disabled { opacity: 0.5; } }
     .btn-accept { padding: 8px 18px; background: #16a34a; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; i { margin-right: 4px; } &:hover { background: #15803d; } &:disabled { opacity: 0.5; } }
     .btn-reject { padding: 8px 18px; background: #fff; color: #dc2626; border: 1px solid #fecaca; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; i { margin-right: 4px; } &:hover { background: #fee2e2; } &:disabled { opacity: 0.5; } }
-    .btn-argue { padding: 8px 18px; background: #fff; color: #7c3aed; border: 1px solid #ddd6fe; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; i { margin-right: 4px; } &:hover { background: #f3e8ff; } &:disabled { opacity: 0.5; } }
+    .btn-negotiate { padding: 8px 18px; background: #fff; color: #7c3aed; border: 1px solid #ddd6fe; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; i { margin-right: 4px; } &:hover { background: #f3e8ff; } &:disabled { opacity: 0.5; } }
     .offer-accepted-banner { padding: 12px 22px; background: #dcfce7; border-top: 1px solid #bbf7d0; color: #166534; font-weight: 600; font-size: 13px; i { margin-right: 6px; } }
     .offer-rejected-banner { padding: 12px 22px; background: #fee2e2; border-top: 1px solid #fecaca; color: #991b1b; font-weight: 600; font-size: 13px; i { margin-right: 6px; } }
-    .offer-argued-banner { padding: 12px 22px; background: #ede9fe; border-top: 1px solid #ddd6fe; color: #5b21b6; font-weight: 600; font-size: 13px; i { margin-right: 6px; } }
+    .offer-negotiated-banner { padding: 12px 22px; background: #ede9fe; border-top: 1px solid #ddd6fe; color: #5b21b6; font-weight: 600; font-size: 13px; i { margin-right: 6px; } }
 
     .modal-overlay {
       position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); z-index: 1000;
@@ -376,13 +385,13 @@ interface AppRow {
       &:disabled { opacity: 0.5; cursor: not-allowed; }
     }
     .modal-subtitle { margin: 0 0 10px; color: #64748b; font-size: 13px; }
-    .argue-textarea {
+    .negotiate-textarea {
       width: 100%; min-height: 120px; resize: vertical; border: 1px solid #cbd5e1; border-radius: 10px;
       padding: 10px 12px; font-size: 14px; color: #0f172a; outline: none;
       &:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15); }
       &:disabled { background: #f8fafc; }
     }
-    .argue-char-count { margin-top: 6px; text-align: right; color: #94a3b8; font-size: 12px; }
+    .negotiate-char-count { margin-top: 6px; text-align: right; color: #94a3b8; font-size: 12px; }
     .modal-actions { margin-top: 14px; display: flex; justify-content: flex-end; gap: 8px; }
     .btn-cancel {
       padding: 8px 14px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #475569;
@@ -404,10 +413,10 @@ export class CandidateApplicationsComponent implements OnInit {
   stages: { stage_id: string; stage_name: string; order: number; icon: string }[] = [];
   isLoading = true;
   candidateId = '';
-  showArgueOfferModal = false;
-  argueOfferSubmitting = false;
-  argueOfferReason = '';
-  argueOfferTargetApp: AppRow | null = null;
+  showNegotiateOfferModal = false;
+  negotiateOfferSubmitting = false;
+  negotiateOfferReason = '';
+  negotiateOfferTargetApp: AppRow | null = null;
 
   // Document Upload State
   showUploadModal = false;
@@ -514,7 +523,8 @@ export class CandidateApplicationsComponent implements OnInit {
             createdBy: appOffer['created_by_user'] || appOffer['created_by'] || '',
             updatedAt: appOffer['updated_at'] || '',
             updatedBy: appOffer['updated_by_user'] || appOffer['updated_by'] || '',
-            arguedReason: appOffer['temp1'] || appOffer['Temp1'] || ''
+            negotiatedReason: appOffer['temp1'] || appOffer['Temp1'] || '',
+            negotiationCount: Number.parseInt(String(appOffer['temp2'] ?? appOffer['Temp2'] ?? '').trim() || '0', 10) || 0
           } : null
         };
       });
@@ -745,38 +755,48 @@ export class CandidateApplicationsComponent implements OnInit {
     }
   }
 
-  openArgueOfferModal(app: AppRow): void {
+  openNegotiateOfferModal(app: AppRow): void {
     if (!app.offer || app.offer.status !== 'SENT') return;
-    this.argueOfferTargetApp = app;
-    this.argueOfferReason = '';
-    this.argueOfferSubmitting = false;
-    this.showArgueOfferModal = true;
+    if ((app.offer.negotiationCount || 0) >= 3) {
+      this.toast.error('Negotiation limit reached (max 3).');
+      return;
+    }
+    this.negotiateOfferTargetApp = app;
+    this.negotiateOfferReason = '';
+    this.negotiateOfferSubmitting = false;
+    this.showNegotiateOfferModal = true;
   }
 
-  closeArgueOfferModal(): void {
-    if (this.argueOfferSubmitting) return;
-    this.showArgueOfferModal = false;
-    this.argueOfferTargetApp = null;
-    this.argueOfferReason = '';
+  closeNegotiateOfferModal(): void {
+    if (this.negotiateOfferSubmitting) return;
+    this.showNegotiateOfferModal = false;
+    this.negotiateOfferTargetApp = null;
+    this.negotiateOfferReason = '';
   }
 
-  async submitArgueOffer(): Promise<void> {
-    const app = this.argueOfferTargetApp;
+  async submitNegotiateOffer(): Promise<void> {
+    const app = this.negotiateOfferTargetApp;
     if (!app?.offer) return;
-    const reason = this.argueOfferReason.trim();
+    const reason = this.negotiateOfferReason.trim();
     if (!reason) return;
+    if ((app.offer.negotiationCount || 0) >= 3) {
+      this.toast.error('Negotiation limit reached (max 3).');
+      return;
+    }
 
-    this.argueOfferSubmitting = true;
+    this.negotiateOfferSubmitting = true;
     try {
       const arguedStage = this.stages.find(s => {
         const name = (s.stage_name || '').toLowerCase();
-        return name.includes('hold') || name.includes('argued');
+        return name.includes('hold') || name.includes('argued') || name.includes('negotiat');
       });
       const arguedStageId = arguedStage?.stage_id || app.current_stage_id;
 
-      await this.soap.updateOfferStatus(app.offer.offer_id, 'ARGUED', reason);
+      const res = await this.soap.negotiateOffer(app.offer.offer_id, reason);
+      // Persisted status is ARGUED (enum), displayed as "NEGOTIATED" in UI.
       app.offer.status = 'ARGUED';
-      app.offer.arguedReason = reason;
+      app.offer.negotiatedReason = reason;
+      app.offer.negotiationCount = res.negotiationCount;
 
       // Application stays active in the pipeline but is "On Hold / Argued" for HR resolution.
       await this.soap.updateApplicationStageAndStatus(app._raw, 'HOLD', arguedStageId);
@@ -788,7 +808,7 @@ export class CandidateApplicationsComponent implements OnInit {
       // Notify candidate + HR (non-blocking)
       try {
         const { candidateEmail, candidateName, hrEmail } = await this.resolveCandidateAndHrEmails(app);
-        const mail = buildMailBody('OFFER_ARGUED', {
+        const mail = buildMailBody('OFFER_NEGOTIATED', {
           candidateName,
           jobTitle: app.jobTitle
         });
@@ -800,16 +820,18 @@ export class CandidateApplicationsComponent implements OnInit {
           await this.soap.sendAllMailsBPM(hrEmail, mail.subject, mail.body);
         }
       } catch (mailErr) {
-        console.warn('[CandidateOffers] Failed to send offer argued mail (non-blocking):', mailErr);
+        console.warn('[CandidateOffers] Failed to send offer negotiated mail (non-blocking):', mailErr);
       }
 
-      this.showArgueOfferModal = false;
-      this.argueOfferTargetApp = null;
-      this.argueOfferReason = '';
+      this.showNegotiateOfferModal = false;
+      this.negotiateOfferTargetApp = null;
+      this.negotiateOfferReason = '';
     } catch (e) {
-      console.error('Failed to argue offer:', e);
+      console.error('Failed to negotiate offer:', e);
+      const msg = (e as any)?.message ? String((e as any).message) : 'Failed to negotiate offer.';
+      this.toast.error(msg);
     } finally {
-      this.argueOfferSubmitting = false;
+      this.negotiateOfferSubmitting = false;
     }
   }
 

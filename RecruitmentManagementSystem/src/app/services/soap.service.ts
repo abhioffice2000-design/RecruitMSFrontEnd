@@ -1944,7 +1944,8 @@ export class SoapService {
         expiration_date: offerDetails.expiration_date || '',
         status: offerDetails.status || 'DRAFT',
         created_by_user: offerDetails.created_by_user || '',
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        temp3: offerDetails.temp3 || offerDetails.designation || ''
       };
       MOCK_OFFERS.push(newOffer);
       return Promise.resolve({ success: true, offer_id: nextId });
@@ -1960,7 +1961,11 @@ export class SoapService {
             expiration_date: offerDetails.expiration_date || '',
             status: offerDetails.status || 'DRAFT',
             created_by_user: offerDetails.created_by_user || '',
-            temp1: '', temp2: '', temp3: '', temp4: '', temp5: ''
+            temp1: '',
+            temp2: '',
+            temp3: offerDetails.temp3 || offerDetails.designation || '',
+            temp4: '',
+            temp5: ''
           }
         }
       }
@@ -2116,7 +2121,7 @@ ${wsXml}      <calendarName>${escapeXml(cal)}</calendarName>
       const offer = MOCK_OFFERS.find(o => o['offer_id'] === offerId);
       if (offer) {
         offer['status'] = newStatus;
-        offer['temp1'] = newStatus === 'ARGUED' ? arguedReason : '';
+        offer['temp1'] = (newStatus === 'ARGUED' || newStatus === 'NEGOTIATED') ? arguedReason : '';
       }
       return Promise.resolve({ success: true });
     }
@@ -2128,11 +2133,44 @@ ${wsXml}      <calendarName>${escapeXml(cal)}</calendarName>
           ts_offers: {
             offer_id: offerId,
             status: newStatus,
-            temp1: newStatus === 'ARGUED' ? arguedReason : ''
+            temp1: (newStatus === 'ARGUED' || newStatus === 'NEGOTIATED') ? arguedReason : ''
           }
         }
       }
     });
+  }
+
+  /**
+   * Candidate negotiation: store reason in temp1,
+   * and increment negotiation count in temp2 (max 3).
+   *
+   * Notes:
+   * - DB enum is `offer_status_enum` and does NOT include "NEGOTIATED".
+   * - We therefore persist status as `ARGUED` but display it as "NEGOTIATED" in the UI.
+   */
+  async negotiateOffer(offerId: string, reason: string): Promise<{ success: true; negotiationCount: number }> {
+    const safeReason = (reason || '').trim();
+    if (!safeReason) throw new Error('Negotiation reason is required.');
+
+    // Fetch latest row so count is correct and avoids tuple conflicts.
+    const rows = await this.getOffers();
+    const normalizeKey = (v: unknown) => String(v ?? '').replace(/\s+/g, '').trim();
+    const current = (rows || []).find(r => normalizeKey(r['offer_id']) === normalizeKey(offerId));
+    if (!current) throw new Error(`Offer not found: ${offerId}`);
+
+    const currentCount = Number.parseInt(String(current['temp2'] ?? '').trim() || '0', 10) || 0;
+    if (currentCount >= 3) throw new Error('Negotiation limit reached (max 3).');
+
+    const nextCount = currentCount + 1;
+    const canonicalOfferId = String(current['offer_id'] || offerId);
+
+    await this.updateOfferDetails(canonicalOfferId, {
+      status: 'ARGUED',
+      temp1: safeReason,
+      temp2: String(nextCount)
+    });
+
+    return { success: true, negotiationCount: nextCount };
   }
 
   /**
@@ -2148,6 +2186,10 @@ ${wsXml}      <calendarName>${escapeXml(cal)}</calendarName>
       expiration_date?: string;
       status?: string;
       temp1?: string;
+      temp2?: string;
+      temp3?: string;
+      temp4?: string;
+      temp5?: string;
       updated_by?: string;
     }
   ): Promise<any> {
@@ -2160,17 +2202,23 @@ ${wsXml}      <calendarName>${escapeXml(cal)}</calendarName>
         if (updates.expiration_date !== undefined) offer['expiration_date'] = updates.expiration_date;
         if (updates.status !== undefined) offer['status'] = updates.status;
         if (updates.temp1 !== undefined) offer['temp1'] = updates.temp1;
+        if (updates.temp2 !== undefined) offer['temp2'] = updates.temp2;
+        if (updates.temp3 !== undefined) offer['temp3'] = updates.temp3;
+        if (updates.temp4 !== undefined) offer['temp4'] = updates.temp4;
+        if (updates.temp5 !== undefined) offer['temp5'] = updates.temp5;
         if (updates.updated_by !== undefined) offer['updated_by'] = updates.updated_by;
       }
       return Promise.resolve({ success: true });
     }
 
     const currentRows = await this.getOffers();
-    const current = (currentRows || []).find(r => String(r['offer_id'] || '') === String(offerId));
+    const normalizeKey = (v: unknown) => String(v ?? '').replace(/\s+/g, '').trim();
+    const current = (currentRows || []).find(r => normalizeKey(r['offer_id']) === normalizeKey(offerId));
     if (!current) throw new Error(`Offer not found: ${offerId}`);
 
-    const merged = {
-      offer_id: offerId,
+    const merged: any = {
+      // IMPORTANT: keep the exact PK from Cordys (sometimes includes spaces)
+      offer_id: String(current['offer_id'] || offerId),
       application_id: current['application_id'] || '',
       offered_salary: updates.offered_salary !== undefined ? updates.offered_salary : (current['offered_salary'] || ''),
       salary_currency: updates.salary_currency !== undefined ? updates.salary_currency : (current['salary_currency'] || 'INR'),
@@ -2180,20 +2228,104 @@ ${wsXml}      <calendarName>${escapeXml(cal)}</calendarName>
       created_by_user: current['created_by_user'] || current['created_by'] || '',
       created_at: current['created_at'] || '',
       created_by: current['created_by'] || '',
-      updated_at: current['updated_at'] || '',
       updated_by: updates.updated_by !== undefined ? updates.updated_by : (current['updated_by'] || ''),
       temp1: updates.temp1 !== undefined ? updates.temp1 : (current['temp1'] || ''),
-      temp2: current['temp2'] || '',
-      temp3: current['temp3'] || '',
-      temp4: current['temp4'] || '',
-      temp5: current['temp5'] || ''
+      temp2: updates.temp2 !== undefined ? updates.temp2 : (current['temp2'] || ''),
+      temp3: updates.temp3 !== undefined ? updates.temp3 : (current['temp3'] || ''),
+      temp4: updates.temp4 !== undefined ? updates.temp4 : (current['temp4'] || ''),
+      temp5: updates.temp5 !== undefined ? updates.temp5 : (current['temp5'] || '')
     };
 
-    return this.call('UpdateTs_offers', {
-      tuple: {
-        old: { ts_offers: { ...current } },
-        'new': { ts_offers: merged }
-      }
+    // Cordys can timeout if date/nil fields serialize to empty tags (e.g. <updated_at></updated_at>).
+    // Send explicit SOAP XML so we can represent nil correctly.
+    const escapeXml = (val: unknown): string => {
+      const apos = '&apos;';
+      return String(val ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", apos);
+    };
+
+    const xmlVal = (tag: string, val: unknown): string => `<${tag}>${escapeXml(val)}</${tag}>`;
+    const xmlNilIfEmpty = (tag: string, val: unknown): string => {
+      const s = String(val ?? '').trim();
+      if (!s) return `<${tag} null="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>`;
+      return `<${tag}>${escapeXml(s)}</${tag}>`;
+    };
+
+    const oldXml =
+      `<old>` +
+      `<ts_offers xmlns="${this.NS}">` +
+      xmlVal('offer_id', current['offer_id']) +
+      xmlVal('application_id', current['application_id']) +
+      xmlVal('offered_salary', current['offered_salary']) +
+      xmlVal('salary_currency', current['salary_currency']) +
+      xmlVal('joining_date', current['joining_date']) +
+      xmlVal('expiration_date', current['expiration_date']) +
+      xmlVal('status', current['status']) +
+      xmlVal('created_by_user', current['created_by_user']) +
+      xmlVal('created_at', current['created_at']) +
+      xmlVal('created_by', current['created_by']) +
+      xmlNilIfEmpty('updated_at', current['updated_at']) +
+      xmlVal('updated_by', current['updated_by']) +
+      xmlVal('temp1', current['temp1']) +
+      xmlVal('temp2', current['temp2']) +
+      xmlVal('temp3', current['temp3']) +
+      xmlVal('temp4', current['temp4']) +
+      xmlVal('temp5', current['temp5']) +
+      `</ts_offers>` +
+      `</old>`;
+
+    const newXml =
+      `<new>` +
+      `<ts_offers>` +
+      xmlVal('offer_id', merged.offer_id) +
+      xmlVal('application_id', merged.application_id) +
+      xmlVal('offered_salary', merged.offered_salary) +
+      xmlVal('salary_currency', merged.salary_currency) +
+      xmlVal('joining_date', merged.joining_date) +
+      xmlVal('expiration_date', merged.expiration_date) +
+      xmlVal('status', merged.status) +
+      xmlVal('created_by_user', merged.created_by_user) +
+      xmlVal('created_at', merged.created_at) +
+      xmlVal('created_by', merged.created_by) +
+      // Do NOT send updated_at as empty; keep nil so Cordys doesn't hang.
+      xmlNilIfEmpty('updated_at', current['updated_at']) +
+      xmlVal('updated_by', merged.updated_by) +
+      xmlVal('temp1', merged.temp1) +
+      xmlVal('temp2', merged.temp2) +
+      xmlVal('temp3', merged.temp3) +
+      xmlVal('temp4', merged.temp4) +
+      xmlVal('temp5', merged.temp5) +
+      `</ts_offers>` +
+      `</new>`;
+
+    const soapXml = `<SOAP:Envelope xmlns:SOAP="http://schemas.xmlsoap.org/soap/envelope/">
+  <SOAP:Body>
+    <UpdateTs_offers xmlns="${this.NS}">
+      <tuple>
+        ${oldXml}
+        ${newXml}
+      </tuple>
+    </UpdateTs_offers>
+  </SOAP:Body>
+</SOAP:Envelope>`;
+
+    return new Promise((resolve, reject) => {
+      $.cordys.ajax({
+        method: 'UpdateTs_offers',
+        namespace: this.NS,
+        data: soapXml,
+        dataType: 'xml',
+      })
+      .done((resp: any) => {
+        this.ngZone.run(() => resolve(resp));
+      })
+      .fail((e1: any, e2: any, e3: any) => {
+        this.ngZone.run(() => reject({ jqXHR: e1, textStatus: e2, errorThrown: e3, responseText: e1?.responseText || '' }));
+      });
     });
   }
 
