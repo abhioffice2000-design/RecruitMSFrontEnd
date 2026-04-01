@@ -6,6 +6,7 @@ import {
   MOCK_OFFERS,
   MOCK_DELEGATES
 } from './mock-data';
+import { buildMailBody } from './mail-templates';
 
 declare var $: any;
 
@@ -49,10 +50,15 @@ export class SoapService {
       const tupleArr = Array.isArray(tuples) ? tuples : [tuples];
       return tupleArr.map((t: any) => {
         const old = t.old || t;
-        // If entityName is provided, pick that sub-object; otherwise flatten
-        if (entityName && old[entityName]) {
-          return old[entityName];
+        if (!old) return {};
+        
+        // If entityName is provided, try exact match and PascalCase
+        if (entityName) {
+          if (old[entityName]) return old[entityName];
+          const capitalized = entityName.charAt(0).toUpperCase() + entityName.slice(1);
+          if (old[capitalized]) return old[capitalized];
         }
+
         // Try to find the first child object (the entity)
         const keys = Object.keys(old);
         for (const key of keys) {
@@ -60,7 +66,7 @@ export class SoapService {
             return old[key];
           }
         }
-        return old;
+        return old || {};
       });
     } catch (e) {
       console.warn('[SoapService] parseTuples error:', e);
@@ -105,38 +111,38 @@ export class SoapService {
     return this.call('GetAllDepartments', {}).then(xml => this.parseTuples(xml));
   }
 
-  insertDepartment(data: {
-    department_name: string;
-    created_by: string;
-  }): Promise<any> {
-    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-    if (this.useMockData) {
-      MOCK_DEPARTMENTS.push({
-        department_id: 'D' + String(MOCK_DEPARTMENTS.length + 1).padStart(2, '0'),
-        department_name: data.department_name,
-        manager_id: ''
-      });
-      return Promise.resolve({ success: true });
-    }
-    return this.call('UpdateMt_departments', {
-      tuple: {
-        'new': {
-          mt_departments: {
-            '@qAccess': '0',
-            '@qConstraint': '0',
-            '@qInit': '0',
-            '@qValues': '',
-            department_name: data.department_name,
-            created_at: now,
-            created_by: data.created_by,
-            updated_at: now,
-            updated_by: data.created_by,
-            temp1: '', temp2: '', temp3: '', temp4: '', temp5: ''
-          }
-        }
-      }
-    }, undefined,);
-  }
+  // insertDepartment(data: {
+  //   department_name: string;
+  //   created_by: string;
+  // }): Promise<any> {
+  //   const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  //   if (this.useMockData) {
+  //     MOCK_DEPARTMENTS.push({
+  //       department_id: 'D' + String(MOCK_DEPARTMENTS.length + 1).padStart(2, '0'),
+  //       department_name: data.department_name,
+  //       manager_id: ''
+  //     });
+  //     return Promise.resolve({ success: true });
+  //   }
+  //   return this.call('UpdateMt_departments', {
+  //     tuple: {
+  //       'new': {
+  //         mt_departments: {
+  //           '@qAccess': '0',
+  //           '@qConstraint': '0',
+  //           '@qInit': '0',
+  //           '@qValues': '',
+  //           department_name: data.department_name,
+  //           created_at: now,
+  //           created_by: data.created_by,
+  //           updated_at: now,
+  //           updated_by: data.created_by,
+  //           temp1: '', temp2: '', temp3: '', temp4: '', temp5: ''
+  //         }
+  //       }
+  //     }
+  //   }, undefined,);
+  // }
 
   // ═══════════════════════════════════════════════════════
   //  SKILLS
@@ -470,6 +476,32 @@ export class SoapService {
 </SOAP:Envelope>`;
 
     return this.call('RemoveRolesFromUser', {}, 'http://schemas.cordys.com/UserManagement/1.0/Organization', soapXml);
+  }
+
+  /**
+   * Set/reset a Cordys organization user's password.
+   * Uses the SetPassword SOAP method from UserManagement namespace.
+   */
+  setCordysUserPassword(userName: string, newPassword: string): Promise<any> {
+    if (this.useMockData) return Promise.resolve({ success: true });
+
+    const soapXml = `<SOAP:Envelope xmlns:SOAP="http://schemas.xmlsoap.org/soap/envelope/">
+  <SOAP:Body>
+    <SetPassword xmlns="http://schemas.cordys.com/UserManagement/1.0/Organization">
+      <User>
+        <UserName>${userName}</UserName>
+        <Credentials>
+          <UserIDPassword>
+            <UserID>${userName}</UserID>
+            <Password>${newPassword}</Password>
+          </UserIDPassword>
+        </Credentials>
+      </User>
+    </SetPassword>
+  </SOAP:Body>
+</SOAP:Envelope>`;
+
+    return this.call('SetPassword', {}, 'http://schemas.cordys.com/UserManagement/1.0/Organization', soapXml);
   }
 
   /**
@@ -822,23 +854,29 @@ export class SoapService {
   //  CANDIDATES
   // ═══════════════════════════════════════════════════════
 
+  /**
+   * Fetch all candidates using the standard metadata service.
+   * Resilient to casing thanks to parseTuples auto-discovery.
+   */
   getCandidates(): Promise<Record<string, string>[]> {
     if (this.useMockData) return Promise.resolve(MOCK_CANDIDATES);
     return this.call('GetTs_candidatesObjects', {
       fromCandidate_id: '0', toCandidate_id: 'zzzzzzzzzz'
-    }).then(resp => this.parseTuples(resp, 'ts_candidates'));
+    }).then(resp => this.parseTuples(resp));
   }
+
 
   getAllCandidates(): Promise<Record<string, string>[]> {
     if (this.useMockData) return Promise.resolve(MOCK_CANDIDATES);
-    // Use the exact SOAP structure provided by the user
+    // Use the exact SOAP structure provided by the user, but request all fields including temps
+    // by not restricting qValues, or if needed, specifying them. With qValues="" it should get everything.
     const soapXml = `<SOAP:Envelope xmlns:SOAP="http://schemas.xmlsoap.org/soap/envelope/">
 <SOAP:Body>
 <GetAllCandidates xmlns="http://schemas.cordys.com/RMST1DatabaseMetadata" preserveSpace="no" qAccess="0" qValues="" />
 </SOAP:Body>
 </SOAP:Envelope>`;
     return this.call('GetAllCandidates', {}, 'http://schemas.cordys.com/RMST1DatabaseMetadata', soapXml)
-      .then(resp => this.parseTuples(resp, 'ts_candidates'));
+      .then(resp => this.parseTuples(resp));
   }
 
   getAllCandidatesCount(): Promise<number> {
@@ -987,8 +1025,269 @@ export class SoapService {
     });
   }
 
+  // ═══════════════════════════════════════════════════════
+  //  CANDIDATE BLACKLIST
+  // ═══════════════════════════════════════════════════════
+
   /**
-   * Try Cordys `HashPassword` for `ts_accounts.password_hash`.
+   * Blacklist a candidate for a given duration.
+   * Stores metadata in temp fields on ts_candidates:
+   *   temp1 = 'BLACKLISTED'
+   *   temp2 = expiry ISO date (or '9999-12-31' for FOREVER)
+   *   temp3 = reason text
+   */
+  async blacklistCandidate(
+    candidate: Record<string, any>,
+    durationMonths: number | 'FOREVER',
+    reason: string = 'Hired but did not join'
+  ): Promise<any> {
+    if (this.useMockData) return Promise.resolve({ success: true });
+
+    const cid = candidate['candidate_id'] || candidate['Candidate_id'] || (candidate['_raw'] ? (candidate['_raw']['candidate_id'] || candidate['_raw']['Candidate_id']) : null);
+    if (!cid) throw new Error('Candidate ID is missing');
+
+    const fresh = await this.getCandidateById(cid);
+    if (!fresh) throw new Error(`Candidate not found: ${cid}`);
+    const oldRow = this.buildCandidateRow(fresh);
+    
+    let expiryIso: string;
+    if (durationMonths === 'FOREVER') {
+      expiryIso = '9999-12-31T00:00:00.000Z';
+    } else {
+      const d = new Date();
+      d.setMonth(d.getMonth() + Number(durationMonths));
+      expiryIso = d.toISOString();
+    }
+
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+    return this.call('UpdateTs_candidates', {
+      tuple: {
+        old: {
+          ts_candidates: {
+            '@qConstraint': '0',
+            candidate_id: oldRow.candidate_id
+          }
+        },
+        'new': {
+          ts_candidates: {
+            '@qAccess': '0',
+            '@qConstraint': '0',
+            '@qInit': '0',
+            '@qValues': '',
+            candidate_id: oldRow.candidate_id,
+            first_name: oldRow.first_name,
+            last_name: oldRow.last_name,
+            email: oldRow.email,
+            phone: oldRow.phone,
+            linkedin_url: oldRow.linkedin_url || '',
+            experience_years: oldRow.experience_years || '',
+            location: oldRow.location || '',
+            created_at: oldRow.created_at || '',
+            created_by: oldRow.created_by || '',
+            updated_at: now,
+            updated_by: oldRow.updated_by || 'Admin',
+            temp1: 'BLACKLISTED',
+            temp2: expiryIso,
+            temp3: reason || '',
+            temp4: oldRow.temp4 || '',
+            temp5: oldRow.temp5 || ''
+          }
+        }
+      }
+    });
+  }
+
+  async removeFromBlacklist(candidate: Record<string, any>): Promise<any> {
+    if (this.useMockData) return Promise.resolve({ success: true });
+
+    const cid = candidate['candidate_id'] || candidate['Candidate_id'] || (candidate['_raw'] ? (candidate['_raw']['candidate_id'] || candidate['_raw']['Candidate_id']) : null);
+    if (!cid) throw new Error('Candidate ID is missing');
+
+    const fresh = await this.getCandidateById(cid);
+    if (!fresh) throw new Error(`Candidate not found: ${cid}`);
+    const oldRow = this.buildCandidateRow(fresh);
+    
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+    return this.call('UpdateTs_candidates', {
+      tuple: {
+        old: {
+          ts_candidates: {
+            '@qConstraint': '0',
+            candidate_id: oldRow.candidate_id
+          }
+        },
+        'new': {
+          ts_candidates: {
+            '@qAccess': '0',
+            '@qConstraint': '0',
+            '@qInit': '0',
+            '@qValues': '',
+            candidate_id: oldRow.candidate_id,
+            first_name: oldRow.first_name,
+            last_name: oldRow.last_name,
+            email: oldRow.email,
+            phone: oldRow.phone,
+            linkedin_url: oldRow.linkedin_url || '',
+            experience_years: oldRow.experience_years || '',
+            location: oldRow.location || '',
+            created_at: oldRow.created_at || '',
+            created_by: oldRow.created_by || '',
+            updated_at: now,
+            updated_by: oldRow.updated_by || 'Admin',
+            temp1: '',
+            temp2: '',
+            temp3: '',
+            temp4: oldRow.temp4 || '',
+            temp5: oldRow.temp5 || ''
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * Internal helper to build a candidate row object with proper field names
+   * from either the component's flat row or the raw DB record.
+   */
+  private buildCandidateRow(c: Record<string, any>): any {
+    const raw = c['_raw'] || c;
+    
+    // Case-insensitive lookup helper
+    const getVal = (key: string): string => {
+      const keys = [key, key.toLowerCase(), key.charAt(0).toUpperCase() + key.slice(1).toLowerCase(), key.toUpperCase()];
+      for (const k of keys) {
+        if (c[k] !== undefined && c[k] !== null) return String(c[k]);
+        if (raw[k] !== undefined && raw[k] !== null) return String(raw[k]);
+      }
+      return '';
+    };
+
+    return {
+      candidate_id: getVal('candidate_id'),
+      first_name: getVal('first_name'),
+      last_name: getVal('last_name'),
+      email: getVal('email'),
+      phone: getVal('phone'),
+      experience_years: getVal('experience_years') || '0',
+      location: getVal('location'),
+      linkedin_url: getVal('linkedin_url'),
+      created_at: getVal('created_at'),
+      created_by: getVal('created_by'),
+      updated_at: getVal('updated_at'),
+      updated_by: getVal('updated_by'),
+      temp1: getVal('temp1'),
+      temp2: getVal('temp2'),
+      temp3: getVal('temp3'),
+      temp4: getVal('temp4'),
+      temp5: getVal('temp5')
+    };
+  }
+
+  private escapeXml(val: unknown): string {
+    const apos = '&apos;';
+    return String(val ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", apos);
+  }
+
+  /**
+   * Upload a candidate document (E-Sign, Aadhar, PAN, etc.) as Base64 data URL
+   */
+  async uploadCandidateDocument(
+    candidateId: string,
+    documentType: string,
+    base64Data: string
+  ): Promise<any> {
+    if (this.useMockData) return Promise.resolve({ success: true });
+
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+    return this.call('UpdateTs_candidate_documents', {
+      tuple: {
+        'new': {
+          ts_candidate_documents: {
+            '@qAccess': '0',
+            '@qConstraint': '0',
+            '@qInit': '0',
+            '@qValues': '',
+            candidate_id: candidateId,
+            document_type: documentType,
+            file_path: 'Stored in temp columns', // Fallback to avoid null constraint errors
+            uploaded_at: now,
+            created_at: now,
+            created_by: candidateId,
+            updated_at: now,
+            updated_by: candidateId,
+            temp1: base64Data,
+            temp2: '',
+            temp3: '',
+            temp4: '',
+            temp5: ''
+          }
+        }
+      }
+    });
+  }
+
+  async getCandidateDocuments(candidateId: string): Promise<any[]> {
+    if (this.useMockData) return [];
+    try {
+      const response = await this.call('GetTs_candidate_documentsObjectsForcandidate_id', {
+        Candidate_id: candidateId
+      });
+
+      const tuples = response?.tuple;
+      if (!tuples) return [];
+
+      const items = Array.isArray(tuples) ? tuples : [tuples];
+      return items.map((t: any) => t.old?.ts_candidate_documents || t.new?.ts_candidate_documents || t.ts_candidate_documents || {});
+    } catch (e) {
+      console.error('Failed to get candidate documents:', e);
+      return [];
+    }
+  }
+
+  async requestCandidateDocuments(candidate: any, hrEmail: string, jobTitle: string): Promise<void> {
+    if (this.useMockData) return;
+    const cid = candidate.candidate_id || candidate.Candidate_id;
+    const email = candidate.candidate_email || candidate.Email || candidate.email;
+    const name = candidate.candidate_name || `${candidate.first_name || ''} ${candidate.last_name || ''}`.trim() || 'Candidate';
+
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+    // 1. Create a request marker in ts_candidate_documents
+    await this.call('UpdateTs_candidate_documents', {
+      tuple: {
+        'new': {
+          ts_candidate_documents: {
+            candidate_id: cid,
+            document_type: 'DOCUMENT_REQUEST',
+            file_path: 'HR requested documents',
+            uploaded_at: now,
+            created_at: now,
+            created_by: hrEmail,
+            temp1: `HR (${hrEmail}) has requested mandatory documents for the ${jobTitle} position.`,
+            temp2: 'HR_REQUEST'
+          }
+        }
+      }
+    });
+
+    // 2. Send Email
+    const mail = buildMailBody('MANDATORY_DOCUMENTS_REQUESTED', {
+      candidateName: name,
+      jobTitle: jobTitle,
+      portalUrl: window.location.origin + '/login'
+    });
+    await this.sendAllMailsBPM(email, mail.subject, mail.body);
+  }
+
+  /**
    * If the service returns nothing (JSON/XML shape differs per environment), **falls back to the plain password**
    * so inserts still succeed; Cordys SSO login uses the org password, not this column.
    */
@@ -1089,6 +1388,75 @@ export class SoapService {
   </SOAP:Body>
 </SOAP:Envelope>`;
     return this.call('UpdateTs_accounts', {}, this.NS, soapXml);
+  }
+
+  /**
+   * Insert ts_accounts row for internal user (Manager, HR, Interviewer).
+   * Calls $.cordys.ajax directly with dataType 'xml' (matching register.component.ts pattern).
+   * NOTE: candidate_id is intentionally omitted so it stays NULL in DB.
+   * The chk_account_owner constraint requires exactly one of user_id/candidate_id to be NOT NULL.
+   */
+  insertTsAccountForUser(data: {
+    email: string;
+    password_hash: string;
+    user_id: string;
+    account_type: string;
+  }): Promise<any> {
+    if (this.useMockData) return Promise.resolve({ success: true });
+    const escapeXml = (val: unknown): string => {
+      const apos = '&apos;';
+      return String(val ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", apos);
+    };
+    const now = new Date().toISOString();
+    const soapXml = `<SOAP:Envelope xmlns:SOAP="http://schemas.xmlsoap.org/soap/envelope/">
+  <SOAP:Body>
+    <UpdateTs_accounts xmlns="${this.NS}" reply="yes" commandUpdate="no" preserveSpace="no" batchUpdate="no">
+      <tuple>
+        <new>
+          <ts_accounts qAccess="0" qConstraint="0" qInit="0" qValues="">
+            <email>${escapeXml(data.email)}</email>
+            <password_hash>${escapeXml(data.password_hash)}</password_hash>
+            <account_type>${escapeXml(data.account_type)}</account_type>
+            <user_id>${escapeXml(data.user_id)}</user_id>
+            <account_status>active</account_status>
+            <email_verified>false</email_verified>
+            <failed_login_attempts>0</failed_login_attempts>
+            <last_login></last_login>
+            <password_reset_token></password_reset_token>
+            <password_reset_expiry></password_reset_expiry>
+            <created_at>${escapeXml(now)}</created_at>
+            <updated_at>${escapeXml(now)}</updated_at>
+            <temp1></temp1>
+            <temp2></temp2>
+            <temp3></temp3>
+            <temp4></temp4>
+            <temp5></temp5>
+          </ts_accounts>
+        </new>
+      </tuple>
+    </UpdateTs_accounts>
+  </SOAP:Body>
+</SOAP:Envelope>`;
+
+    return new Promise((resolve, reject) => {
+      $.cordys.ajax({
+        method: 'UpdateTs_accounts',
+        namespace: this.NS,
+        data: soapXml,
+        dataType: 'xml',
+      })
+      .done((resp: any) => {
+        this.ngZone.run(() => resolve(resp));
+      })
+      .fail((e1: any, e2: any, e3: any) => {
+        this.ngZone.run(() => reject({ jqXHR: e1, textStatus: e2, errorThrown: e3 }));
+      });
+    });
   }
 
   /**
@@ -1576,7 +1944,8 @@ export class SoapService {
         expiration_date: offerDetails.expiration_date || '',
         status: offerDetails.status || 'DRAFT',
         created_by_user: offerDetails.created_by_user || '',
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        temp3: offerDetails.temp3 || offerDetails.designation || ''
       };
       MOCK_OFFERS.push(newOffer);
       return Promise.resolve({ success: true, offer_id: nextId });
@@ -1592,7 +1961,11 @@ export class SoapService {
             expiration_date: offerDetails.expiration_date || '',
             status: offerDetails.status || 'DRAFT',
             created_by_user: offerDetails.created_by_user || '',
-            temp1: '', temp2: '', temp3: '', temp4: '', temp5: ''
+            temp1: '',
+            temp2: '',
+            temp3: offerDetails.temp3 || offerDetails.designation || '',
+            temp4: '',
+            temp5: ''
           }
         }
       }
@@ -1748,7 +2121,7 @@ ${wsXml}      <calendarName>${escapeXml(cal)}</calendarName>
       const offer = MOCK_OFFERS.find(o => o['offer_id'] === offerId);
       if (offer) {
         offer['status'] = newStatus;
-        offer['temp1'] = newStatus === 'ARGUED' ? arguedReason : '';
+        offer['temp1'] = (newStatus === 'ARGUED' || newStatus === 'NEGOTIATED') ? arguedReason : '';
       }
       return Promise.resolve({ success: true });
     }
@@ -1760,11 +2133,44 @@ ${wsXml}      <calendarName>${escapeXml(cal)}</calendarName>
           ts_offers: {
             offer_id: offerId,
             status: newStatus,
-            temp1: newStatus === 'ARGUED' ? arguedReason : ''
+            temp1: (newStatus === 'ARGUED' || newStatus === 'NEGOTIATED') ? arguedReason : ''
           }
         }
       }
     });
+  }
+
+  /**
+   * Candidate negotiation: store reason in temp1,
+   * and increment negotiation count in temp2 (max 3).
+   *
+   * Notes:
+   * - DB enum is `offer_status_enum` and does NOT include "NEGOTIATED".
+   * - We therefore persist status as `ARGUED` but display it as "NEGOTIATED" in the UI.
+   */
+  async negotiateOffer(offerId: string, reason: string): Promise<{ success: true; negotiationCount: number }> {
+    const safeReason = (reason || '').trim();
+    if (!safeReason) throw new Error('Negotiation reason is required.');
+
+    // Fetch latest row so count is correct and avoids tuple conflicts.
+    const rows = await this.getOffers();
+    const normalizeKey = (v: unknown) => String(v ?? '').replace(/\s+/g, '').trim();
+    const current = (rows || []).find(r => normalizeKey(r['offer_id']) === normalizeKey(offerId));
+    if (!current) throw new Error(`Offer not found: ${offerId}`);
+
+    const currentCount = Number.parseInt(String(current['temp2'] ?? '').trim() || '0', 10) || 0;
+    if (currentCount >= 3) throw new Error('Negotiation limit reached (max 3).');
+
+    const nextCount = currentCount + 1;
+    const canonicalOfferId = String(current['offer_id'] || offerId);
+
+    await this.updateOfferDetails(canonicalOfferId, {
+      status: 'ARGUED',
+      temp1: safeReason,
+      temp2: String(nextCount)
+    });
+
+    return { success: true, negotiationCount: nextCount };
   }
 
   /**
@@ -1780,6 +2186,10 @@ ${wsXml}      <calendarName>${escapeXml(cal)}</calendarName>
       expiration_date?: string;
       status?: string;
       temp1?: string;
+      temp2?: string;
+      temp3?: string;
+      temp4?: string;
+      temp5?: string;
       updated_by?: string;
     }
   ): Promise<any> {
@@ -1792,17 +2202,23 @@ ${wsXml}      <calendarName>${escapeXml(cal)}</calendarName>
         if (updates.expiration_date !== undefined) offer['expiration_date'] = updates.expiration_date;
         if (updates.status !== undefined) offer['status'] = updates.status;
         if (updates.temp1 !== undefined) offer['temp1'] = updates.temp1;
+        if (updates.temp2 !== undefined) offer['temp2'] = updates.temp2;
+        if (updates.temp3 !== undefined) offer['temp3'] = updates.temp3;
+        if (updates.temp4 !== undefined) offer['temp4'] = updates.temp4;
+        if (updates.temp5 !== undefined) offer['temp5'] = updates.temp5;
         if (updates.updated_by !== undefined) offer['updated_by'] = updates.updated_by;
       }
       return Promise.resolve({ success: true });
     }
 
     const currentRows = await this.getOffers();
-    const current = (currentRows || []).find(r => String(r['offer_id'] || '') === String(offerId));
+    const normalizeKey = (v: unknown) => String(v ?? '').replace(/\s+/g, '').trim();
+    const current = (currentRows || []).find(r => normalizeKey(r['offer_id']) === normalizeKey(offerId));
     if (!current) throw new Error(`Offer not found: ${offerId}`);
 
-    const merged = {
-      offer_id: offerId,
+    const merged: any = {
+      // IMPORTANT: keep the exact PK from Cordys (sometimes includes spaces)
+      offer_id: String(current['offer_id'] || offerId),
       application_id: current['application_id'] || '',
       offered_salary: updates.offered_salary !== undefined ? updates.offered_salary : (current['offered_salary'] || ''),
       salary_currency: updates.salary_currency !== undefined ? updates.salary_currency : (current['salary_currency'] || 'INR'),
@@ -1812,20 +2228,104 @@ ${wsXml}      <calendarName>${escapeXml(cal)}</calendarName>
       created_by_user: current['created_by_user'] || current['created_by'] || '',
       created_at: current['created_at'] || '',
       created_by: current['created_by'] || '',
-      updated_at: current['updated_at'] || '',
       updated_by: updates.updated_by !== undefined ? updates.updated_by : (current['updated_by'] || ''),
       temp1: updates.temp1 !== undefined ? updates.temp1 : (current['temp1'] || ''),
-      temp2: current['temp2'] || '',
-      temp3: current['temp3'] || '',
-      temp4: current['temp4'] || '',
-      temp5: current['temp5'] || ''
+      temp2: updates.temp2 !== undefined ? updates.temp2 : (current['temp2'] || ''),
+      temp3: updates.temp3 !== undefined ? updates.temp3 : (current['temp3'] || ''),
+      temp4: updates.temp4 !== undefined ? updates.temp4 : (current['temp4'] || ''),
+      temp5: updates.temp5 !== undefined ? updates.temp5 : (current['temp5'] || '')
     };
 
-    return this.call('UpdateTs_offers', {
-      tuple: {
-        old: { ts_offers: { ...current } },
-        'new': { ts_offers: merged }
-      }
+    // Cordys can timeout if date/nil fields serialize to empty tags (e.g. <updated_at></updated_at>).
+    // Send explicit SOAP XML so we can represent nil correctly.
+    const escapeXml = (val: unknown): string => {
+      const apos = '&apos;';
+      return String(val ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", apos);
+    };
+
+    const xmlVal = (tag: string, val: unknown): string => `<${tag}>${escapeXml(val)}</${tag}>`;
+    const xmlNilIfEmpty = (tag: string, val: unknown): string => {
+      const s = String(val ?? '').trim();
+      if (!s) return `<${tag} null="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>`;
+      return `<${tag}>${escapeXml(s)}</${tag}>`;
+    };
+
+    const oldXml =
+      `<old>` +
+      `<ts_offers xmlns="${this.NS}">` +
+      xmlVal('offer_id', current['offer_id']) +
+      xmlVal('application_id', current['application_id']) +
+      xmlVal('offered_salary', current['offered_salary']) +
+      xmlVal('salary_currency', current['salary_currency']) +
+      xmlVal('joining_date', current['joining_date']) +
+      xmlVal('expiration_date', current['expiration_date']) +
+      xmlVal('status', current['status']) +
+      xmlVal('created_by_user', current['created_by_user']) +
+      xmlVal('created_at', current['created_at']) +
+      xmlVal('created_by', current['created_by']) +
+      xmlNilIfEmpty('updated_at', current['updated_at']) +
+      xmlVal('updated_by', current['updated_by']) +
+      xmlVal('temp1', current['temp1']) +
+      xmlVal('temp2', current['temp2']) +
+      xmlVal('temp3', current['temp3']) +
+      xmlVal('temp4', current['temp4']) +
+      xmlVal('temp5', current['temp5']) +
+      `</ts_offers>` +
+      `</old>`;
+
+    const newXml =
+      `<new>` +
+      `<ts_offers>` +
+      xmlVal('offer_id', merged.offer_id) +
+      xmlVal('application_id', merged.application_id) +
+      xmlVal('offered_salary', merged.offered_salary) +
+      xmlVal('salary_currency', merged.salary_currency) +
+      xmlVal('joining_date', merged.joining_date) +
+      xmlVal('expiration_date', merged.expiration_date) +
+      xmlVal('status', merged.status) +
+      xmlVal('created_by_user', merged.created_by_user) +
+      xmlVal('created_at', merged.created_at) +
+      xmlVal('created_by', merged.created_by) +
+      // Do NOT send updated_at as empty; keep nil so Cordys doesn't hang.
+      xmlNilIfEmpty('updated_at', current['updated_at']) +
+      xmlVal('updated_by', merged.updated_by) +
+      xmlVal('temp1', merged.temp1) +
+      xmlVal('temp2', merged.temp2) +
+      xmlVal('temp3', merged.temp3) +
+      xmlVal('temp4', merged.temp4) +
+      xmlVal('temp5', merged.temp5) +
+      `</ts_offers>` +
+      `</new>`;
+
+    const soapXml = `<SOAP:Envelope xmlns:SOAP="http://schemas.xmlsoap.org/soap/envelope/">
+  <SOAP:Body>
+    <UpdateTs_offers xmlns="${this.NS}">
+      <tuple>
+        ${oldXml}
+        ${newXml}
+      </tuple>
+    </UpdateTs_offers>
+  </SOAP:Body>
+</SOAP:Envelope>`;
+
+    return new Promise((resolve, reject) => {
+      $.cordys.ajax({
+        method: 'UpdateTs_offers',
+        namespace: this.NS,
+        data: soapXml,
+        dataType: 'xml',
+      })
+      .done((resp: any) => {
+        this.ngZone.run(() => resolve(resp));
+      })
+      .fail((e1: any, e2: any, e3: any) => {
+        this.ngZone.run(() => reject({ jqXHR: e1, textStatus: e2, errorThrown: e3, responseText: e1?.responseText || '' }));
+      });
     });
   }
 
@@ -2614,7 +3114,7 @@ ${wsXml}      <calendarName>${escapeXml(cal)}</calendarName>
     let dbStatus = 'PENDING';
     if (data.action === 'APPROVED') dbStatus = 'APPROVED';
     else if (data.action === 'REJECTED') dbStatus = 'REJECTED';
-    
+
     // Fallback to "system" if no user provided (to avoid FK violation)
     const reqBy = data.requested_by || 'system';
 
@@ -2654,5 +3154,39 @@ ${wsXml}      <calendarName>${escapeXml(cal)}</calendarName>
     const allRows = this.parseTuples(resp, 'ts_approvals');
     return allRows.filter(r => r['entity_id'] === requisitionId && r['entity_type'] === 'REQUISITION');
   }
+  insertDepartment(data: {
+    department_name: string;
+    created_by: string;
+    manager_id?: string;
+  }): Promise<any> {
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    if (this.useMockData) {
+      MOCK_DEPARTMENTS.push({
+        department_id: 'D' + String(MOCK_DEPARTMENTS.length + 1).padStart(2, '0'),
+        department_name: data.department_name,
+        manager_id: data.manager_id || ''
+      });
+      return Promise.resolve({ success: true });
+    }
+    return this.call('UpdateMt_departments', {
+      tuple: {
+        'new': {
+          mt_departments: {
+            '@qAccess': '0',
+            '@qConstraint': '0',
+            '@qInit': '0',
+            '@qValues': '',
+            department_name: data.department_name,
+            created_at: now,
+            created_by: data.created_by,
+            updated_at: now,
+            updated_by: data.created_by,
+            temp1: data.manager_id || '', temp2: '', temp3: '', temp4: '', temp5: ''
+          }
+        }
+      }
+    }, undefined,);
+  }
+
 }
 

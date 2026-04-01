@@ -8,17 +8,22 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  gap: 0.75rem;
+  margin-bottom: 2rem;
 }
 
 .page-title {
@@ -52,8 +57,8 @@
   width: 48px;
   height: 48px;
   border-radius: 12px;
-  background-color: rgba(37, 99, 235, 0.12);
-  color: var(--adnate-blue, var(--primary-color));
+  background-color: rgba(59, 130, 246, 0.1);
+  color: var(--primary-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -99,6 +104,10 @@
   align-items: start;
 }
 
+.col-span-3 {
+  grid-column: span 3 / span 3;
+}
+
 .col-span-2 {
   grid-column: span 2 / span 2;
 }
@@ -108,7 +117,9 @@
 }
 
 @media (max-width: 1024px) {
-  .col-span-2, .col-span-1 {
+
+  .col-span-2,
+  .col-span-1 {
     grid-column: span 1 / span 1;
   }
 }
@@ -127,6 +138,7 @@
 .mt-4 {
   margin-top: 1rem;
 }
+
 .mt-3 {
   margin-top: 0.75rem;
 }
@@ -139,67 +151,4 @@
 .badge-primary {
   background-color: #dbeafe;
   color: #1e40af;
-}
-
-/* Quick Actions */
-.quick-actions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.quick-action-btn {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  border-radius: 12px;
-  border: 1px solid var(--border-light);
-  background: var(--bg-surface);
-  cursor: pointer;
-  text-align: left;
-  transition: all var(--transition-fast);
-  width: 100%;
-}
-
-.quick-action-btn:hover {
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: var(--shadow-sm);
-  transform: translateY(-2px);
-}
-
-.icon-sq {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.icon-sq svg {
-  width: 20px;
-  height: 20px;
-}
-
-.icon-sq.blue {
-  background-color: #eff6ff;
-  color: var(--primary-dark);
-}
-
-.icon-sq.orange {
-  background-color: #fff7ed;
-  color: #c2410c;
-}
-
-.text-content h4 {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-main);
-  margin-bottom: 0.125rem;
-}
-
-.text-content p {
-  font-size: 0.75rem;
-  color: var(--text-muted);
 }

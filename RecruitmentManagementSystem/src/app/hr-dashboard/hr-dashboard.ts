@@ -12,6 +12,7 @@ import { filter } from 'rxjs/operators';
 import { ThemeToggleComponent } from '../shared/theme-toggle/theme-toggle.component';
 import { ThemeService } from '../services/theme.service';
 import { HeaderComponent } from '../layout/header/header.component';
+import { NotificationService } from '../services/notification.service';
 
 declare var $: any;
 
@@ -33,9 +34,14 @@ export class HrDashboard implements OnInit, OnDestroy {
   /** Mobile overlay nav (viewport &lt; ~992px) */
   mobileNavOpen = false;
   sidebarCollapsed = false;
+  currentNotification: { message: string, type: string } | null = null;
   private navSub?: Subscription;
+  private notifySub?: Subscription;
 
-  constructor(private router: Router) {}
+  constructor(
+    private router: Router,
+    private notifyService: NotificationService
+  ) {}
 
   ngOnInit(): void {
     this.navSub = this.router.events
@@ -43,10 +49,38 @@ export class HrDashboard implements OnInit, OnDestroy {
       .subscribe(() => {
         this.mobileNavOpen = false;
       });
+
+    // Listen for real-time notifications
+    this.notifySub = this.notifyService.notifications$.subscribe(notif => {
+      this.handleRealTimeNotification(notif);
+    });
+  }
+
+  handleRealTimeNotification(notif: { type: string, data: any }) {
+    let message = '';
+    switch (notif.type) {
+      case 'LOGIN':
+        message = `User ${notif.data.username} logged into ${notif.data.portal}`;
+        break;
+      case 'LOGOUT':
+        message = `User ${notif.data.username} logged out`;
+        break;
+      case 'CANDIDATE_APPLIED':
+        message = `New candidate applied: ${notif.data.candidateName || 'Unknown'}`;
+        break;
+    }
+
+    if (message) {
+      this.currentNotification = { message, type: notif.type };
+      setTimeout(() => {
+        this.currentNotification = null;
+      }, 5000);
+    }
   }
 
   ngOnDestroy(): void {
     this.navSub?.unsubscribe();
+    this.notifySub?.unsubscribe();
   }
 
   toggleSidebar(): void {
@@ -59,6 +93,8 @@ export class HrDashboard implements OnInit, OnDestroy {
   logout() {
     try {
       ThemeService.preserveTheme(() => {
+        const username = sessionStorage.getItem('loggedInUser') || 'Unknown';
+        this.notifyService.sendNotification('LOGOUT', { username });
         sessionStorage.clear();
         localStorage.clear();
       });

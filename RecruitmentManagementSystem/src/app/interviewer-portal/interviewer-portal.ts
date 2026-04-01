@@ -40,7 +40,10 @@ interface Interview {
 // ===== Matches ts_interview_feedback =====
 interface FeedbackForm {
   interview_id: string;
-  rating: number;
+  technical: number;
+  aptitude: number;
+  communication: number;
+  culture: number;
   recommendation: string;
   comments: string;
 }
@@ -120,7 +123,10 @@ export class InterviewerPortal implements OnInit {
   feedbackInterview: Interview | null = null;
   feedbackForm: FeedbackForm = {
     interview_id: '',
-    rating: 0,
+    technical: 0,
+    aptitude: 0,
+    communication: 0,
+    culture: 0,
     recommendation: '',
     comments: '',
   };
@@ -549,12 +555,42 @@ export class InterviewerPortal implements OnInit {
     }
   }
 
+  onSlotDateChange(): void {
+    // If user selects today, prevent choosing past times by snapping to the first valid option.
+    const options = this.getStartTimeOptionsForSelectedDate(this.newSlot.date);
+    if (options.length === 0) {
+      this.newSlot.startTime = '';
+      this.newSlot.endTime = '';
+      return;
+    }
+    if (!options.includes(this.newSlot.startTime)) {
+      this.newSlot.startTime = options[0];
+      this.newSlot.endTime = this.addMinutesToHHMM(this.newSlot.startTime, 30);
+    }
+  }
+
   onStartTimeChange(): void {
     if (!this.newSlot.startTime) {
       this.newSlot.endTime = '';
       return;
     }
     this.newSlot.endTime = this.addMinutesToHHMM(this.newSlot.startTime, 30);
+  }
+
+  getStartTimeOptionsForSelectedDate(dateStr: string): string[] {
+    const all = this.startTimeOptions || [];
+    if (!dateStr) return all;
+
+    const today = this.toLocalISODate(new Date());
+    if (dateStr !== today) return all;
+
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+
+    // Filter to times that are not in the past.
+    // (If time equals "now", we allow it.)
+    const filtered = all.filter(t => this.hhmmToMinutes(t) >= nowMin);
+    return filtered;
   }
 
   // ADD SLOT — uses UpdateTs_interview_slots (INSERT with new only)
@@ -576,6 +612,20 @@ export class InterviewerPortal implements OnInit {
     if (!this.startTimeOptions.includes(this.newSlot.startTime)) {
       this.showToast('Start time must be in fixed half-hour slots (09:30–18:00).', 'error');
       return;
+    }
+
+    // If date is today, prevent selecting a slot start time in the past.
+    const today = this.toLocalISODate(new Date());
+    if (this.newSlot.date === today) {
+      const now = new Date();
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      const startMin = this.hhmmToMinutes(this.newSlot.startTime);
+      if (startMin < nowMin) {
+        const next = this.getStartTimeOptionsForSelectedDate(today)[0];
+        const hint = next ? ` Please choose ${next} or later.` : ' No more valid slots available today.';
+        this.showToast('Start time cannot be in the past for today.' + hint, 'error');
+        return;
+      }
     }
     const expectedEnd = this.addMinutesToHHMM(this.newSlot.startTime, 30);
     if (this.newSlot.endTime !== expectedEnd) {
@@ -702,7 +752,10 @@ export class InterviewerPortal implements OnInit {
     this.feedbackInterview = interview;
     this.feedbackForm = {
       interview_id: interview.interview_id,
-      rating: 0,
+      technical: 0,
+      aptitude: 0,
+      communication: 0,
+      culture: 0,
       recommendation: '',
       comments: '',
     };
@@ -713,21 +766,43 @@ export class InterviewerPortal implements OnInit {
   closeFeedbackModal(): void {
     this.showFeedbackModal = false;
     this.feedbackInterview = null;
+    this.hoveredStar = 0;
   }
 
-  setRating(value: number): void {
-    this.feedbackForm.rating = value;
+  setRating(field: 'technical' | 'aptitude' | 'communication' | 'culture', value: number): void {
+    (this.feedbackForm as any)[field] = value;
+  }
+
+  private weightedAverageScore10(f: FeedbackForm): number {
+    const tech = Number(f.technical || 0);
+    const apt = Number(f.aptitude || 0);
+    const comm = Number(f.communication || 0);
+    const cult = Number(f.culture || 0);
+    // 40-40-10-10 weighting; outputs on 0..10 scale
+    const weighted = (tech * 0.4) + (apt * 0.4) + (comm * 0.1) + (cult * 0.1);
+    return Math.round(weighted * 10) / 10; // 1 decimal
   }
 
   submitFeedback(): void {
-    if (!this.feedbackForm.rating) {
-      this.showToast('Please provide a rating.', 'error');
+    if (!this.feedbackForm.technical || !this.feedbackForm.aptitude) {
+      this.showToast('Please provide Technical and Aptitude ratings.', 'error');
       return;
+    }
+    // Allow 0 for communication/culture, but if any of them set, ensure range 0-10
+    const fields: Array<keyof FeedbackForm> = ['technical', 'aptitude', 'communication', 'culture'];
+    for (const k of fields) {
+      const v = Number((this.feedbackForm as any)[k] || 0);
+      if (v < 0 || v > 10) {
+        this.showToast('Ratings must be between 0 and 10.', 'error');
+        return;
+      }
     }
     if (!this.feedbackForm.recommendation) {
       this.showToast('Please select a recommendation.', 'error');
       return;
     }
+
+    const weighted = this.weightedAverageScore10(this.feedbackForm);
 
     $.cordys.ajax({
       method: 'UpdateTs_interview_feedback',
@@ -738,11 +813,17 @@ export class InterviewerPortal implements OnInit {
             ts_interview_feedback: {
               interview_id: this.feedbackForm.interview_id,
               interviewer_id: this.loggedInUserId,
-              rating: this.feedbackForm.rating.toString(),
+              // Keep legacy rating column as the weighted score so existing UIs still work.
+              rating: weighted.toString(),
               recommendation: this.feedbackForm.recommendation,
               comments: this.feedbackForm.comments,
               submitted_at: new Date().toISOString(),
-              temp1: '', temp2: '', temp3: '', temp4: '', temp5: ''
+              // Store category ratings in temps to compute weighted average for HR/workflow.
+              temp1: String(this.feedbackForm.technical || ''),
+              temp2: String(this.feedbackForm.aptitude || ''),
+              temp3: String(this.feedbackForm.communication || ''),
+              temp4: String(this.feedbackForm.culture || ''),
+              temp5: String(weighted)
             }
           }
         }

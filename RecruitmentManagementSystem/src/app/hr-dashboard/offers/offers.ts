@@ -3,12 +3,14 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SoapService } from '../../services/soap.service';
 import { buildMailBody } from '../../services/mail-templates';
+import jsPDF from 'jspdf';
 
 interface OfferRow {
   offer_id: string;
   application_id: string;
   candidate_name: string;
   job_title: string;
+  designation?: string;
   offered_salary: string;
   salary_currency: string;
   joining_date: string;
@@ -25,6 +27,7 @@ interface CandidateOption {
   application_id: string;
   candidate_name: string;
   job_title: string;
+  candidate_id: string;
 }
 
 @Component({
@@ -65,7 +68,7 @@ interface CandidateOption {
             <option value="">All Statuses</option>
             <option value="DRAFT">Draft</option>
             <option value="SENT">Sent</option>
-            <option value="ARGUED">Argued</option>
+            <option value="NEGOTIATED">Negotiated</option>
             <option value="ACCEPTED">Accepted</option>
             <option value="REJECTED">Rejected</option>
             <option value="EXPIRED">Expired</option>
@@ -126,9 +129,9 @@ interface CandidateOption {
               </td>
               <td>
                 <span class="status-badge" [attr.data-status]="o.status.toLowerCase()">
-                  <i class="fas" [ngClass]="getStatusIcon(o.status)"></i> {{ o.status }}
+                  <i class="fas" [ngClass]="getStatusIcon(o.status)"></i> {{ getStatusLabel(o.status) }}
                 </span>
-                <div class="argued-reason" *ngIf="o.status === 'ARGUED' && o.argued_reason">
+                <div class="argued-reason" *ngIf="(o.status === 'ARGUED' || o.status === 'NEGOTIATED') && o.argued_reason">
                   <i class="fas fa-comment-dots"></i> {{ o.argued_reason }}
                 </div>
               </td>
@@ -145,7 +148,7 @@ interface CandidateOption {
                   <button class="btn-action btn-revoke" *ngIf="o.status === 'SENT'" (click)="revokeOffer(o)" title="Revoke Offer">
                     <i class="fas fa-undo"></i>
                   </button>
-                  <button class="btn-action btn-send" *ngIf="o.status === 'ARGUED'" (click)="openEditResendModal(o)" title="Edit & Resend Offer">
+                  <button class="btn-action btn-send" *ngIf="o.status === 'ARGUED' || o.status === 'NEGOTIATED'" (click)="openEditResendModal(o)" title="Edit & Resend Offer">
                     <i class="fas fa-pen-to-square"></i>
                   </button>
                   <button class="btn-action btn-view" (click)="viewOffer(o)" title="View Details">
@@ -175,6 +178,10 @@ interface CandidateOption {
                 </option>
               </select>
             </div>
+            <div class="form-group">
+              <label>Designation <span class="req">*</span></label>
+              <input type="text" [(ngModel)]="newOffer.designation" class="form-input" placeholder="e.g. Software Engineer">
+            </div>
             <div class="form-row">
               <div class="form-group">
                 <label>Offered Salary <span class="req">*</span></label>
@@ -200,6 +207,126 @@ interface CandidateOption {
                 <input type="date" [(ngModel)]="newOffer.expiration_date" class="form-input">
               </div>
             </div>
+
+            <div class="form-divider"></div>
+
+            <div class="form-group">
+              <label>Offer Letter</label>
+              <div class="doc-help">Choose how the offer letter should be shared with the candidate.</div>
+
+              <div class="segmented">
+                <button type="button" class="seg-btn"
+                        [class.active]="offerLetterMode === 'GENERATED'"
+                        (click)="setOfferLetterMode('GENERATED')">
+                  <i class="fas fa-wand-magic-sparkles"></i> Generated
+                </button>
+                <button type="button" class="seg-btn"
+                        [class.active]="offerLetterMode === 'MANUAL'"
+                        (click)="setOfferLetterMode('MANUAL')">
+                  <i class="fas fa-upload"></i> Manual Upload
+                </button>
+              </div>
+
+              <div class="letter-panel" *ngIf="offerLetterMode === 'GENERATED'">
+                <div class="letter-panel-head">
+                  <div class="letter-title">
+                    <div class="letter-badge gen"><i class="fas fa-bolt"></i></div>
+                    <div>
+                      <div class="letter-h">Generate offer letter PDF</div>
+                      <div class="letter-sub">Uses the offer details you entered above and uploads it to candidate documents as <b>OFFER_LETTER</b>.</div>
+                    </div>
+                  </div>
+                  <div class="letter-actions">
+                    <button class="btn-doc-secondary" type="button"
+                            (click)="previewGeneratedOfferLetter()"
+                            [disabled]="isGeneratingLetter || !canGenerateOfferLetter()">
+                      <i class="fas" [ngClass]="isGeneratingLetter ? 'fa-spinner fa-spin' : 'fa-file-pdf'"></i>
+                      Preview
+                    </button>
+                    <button class="btn-doc-primary" type="button"
+                            (click)="generateAndUploadOfferLetter()"
+                            [disabled]="isGeneratingLetter || !canGenerateOfferLetter()">
+                      <i class="fas" [ngClass]="isGeneratingLetter ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-up'"></i>
+                      {{ isGeneratingLetter ? 'Generating...' : 'Generate & Upload' }}
+                    </button>
+                  </div>
+                </div>
+
+                <div class="mini-grid" *ngIf="newOffer.application_id">
+                  <div class="mini-item">
+                    <div class="mini-k">Candidate</div>
+                    <div class="mini-v">{{ getSelectedCandidateLabel() }}</div>
+                  </div>
+                  <div class="mini-item">
+                    <div class="mini-k">Designation</div>
+                    <div class="mini-v">{{ (newOffer.designation || '-') }}</div>
+                  </div>
+                  <div class="mini-item">
+                    <div class="mini-k">Salary</div>
+                    <div class="mini-v">{{ (newOffer.offered_salary || '-') }} {{ (newOffer.salary_currency || '') }}</div>
+                  </div>
+                  <div class="mini-item">
+                    <div class="mini-k">Joining</div>
+                    <div class="mini-v">{{ newOffer.joining_date ? formatDate(newOffer.joining_date) : '-' }}</div>
+                  </div>
+                  <div class="mini-item">
+                    <div class="mini-k">Expiry</div>
+                    <div class="mini-v">{{ newOffer.expiration_date ? formatDate(newOffer.expiration_date) : '-' }}</div>
+                  </div>
+                </div>
+
+                <div class="doc-status" *ngIf="docUploadStatus">{{ docUploadStatus }}</div>
+              </div>
+
+              <div class="letter-panel" *ngIf="offerLetterMode === 'MANUAL'">
+                <div class="letter-panel-head">
+                  <div class="letter-title">
+                    <div class="letter-badge man"><i class="fas fa-paperclip"></i></div>
+                    <div>
+                      <div class="letter-h">Upload offer letter document</div>
+                      <div class="letter-sub">Upload the offer letter file (PDF preferred). This will be stored for the selected candidate.</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-row doc-row">
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label style="margin-bottom:6px;">Document Type</label>
+                    <select [(ngModel)]="docUploadType" class="form-input">
+                      <option value="OFFER_LETTER">Offer Letter</option>
+                      <option value="OFFER_ATTACHMENT">Offer Attachment</option>
+                      <option value="NDA">NDA</option>
+                      <option value="ID_PROOF">ID Proof</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0;">
+                    <label style="margin-bottom:6px;">Select Files</label>
+                    <input type="file" (change)="onDocFilesSelected($event)" class="form-input" multiple>
+                  </div>
+                </div>
+
+                <div class="doc-files" *ngIf="docFiles.length > 0">
+                  <div class="doc-file" *ngFor="let f of docFiles">
+                    <i class="fas fa-paperclip"></i> {{ f.name }}
+                  </div>
+                </div>
+                <div class="doc-actions">
+                  <button class="btn-doc-secondary" type="button" (click)="clearDocFiles()" [disabled]="isUploadingDocs || docFiles.length === 0">Clear</button>
+                  <button
+                    class="btn-doc-primary"
+                    type="button"
+                    (click)="uploadDocsForSelectedCandidate()"
+                    [disabled]="isUploadingDocs || !newOffer.application_id || docFiles.length === 0"
+                    title="Upload selected documents"
+                  >
+                    <i class="fas" [ngClass]="isUploadingDocs ? 'fa-spinner fa-spin' : 'fa-upload'"></i>
+                    {{ isUploadingDocs ? 'Uploading...' : 'Upload' }}
+                  </button>
+                </div>
+                <div class="doc-status" *ngIf="docUploadStatus">{{ docUploadStatus }}</div>
+              </div>
+            </div>
           </div>
           <div class="modal-footer">
             <button class="btn-cancel" (click)="closeCreateModal()">Cancel</button>
@@ -211,7 +338,7 @@ interface CandidateOption {
         </div>
       </div>
 
-      <!-- ═══ EDIT & RESEND MODAL (ARGUED) ═══ -->
+      <!-- ═══ EDIT & RESEND MODAL (NEGOTIATED) ═══ -->
       <div class="modal-overlay" *ngIf="showEditResendModal" (click)="closeEditResendModal()">
         <div class="modal-card" (click)="$event.stopPropagation()">
           <div class="modal-header">
@@ -225,12 +352,16 @@ interface CandidateOption {
             </div>
 
             <div class="form-group" *ngIf="editingOffer?.argued_reason">
-              <label>Candidate Argue Reason</label>
+              <label>Candidate Negotiation Reason</label>
               <div class="argued-reason" style="margin-top:0;">
                 <i class="fas fa-comment-dots"></i> {{ editingOffer?.argued_reason }}
               </div>
             </div>
 
+            <div class="form-group">
+              <label>Designation <span class="req">*</span></label>
+              <input type="text" [(ngModel)]="editOffer.designation" class="form-input" placeholder="e.g. Software Engineer">
+            </div>
             <div class="form-row">
               <div class="form-group">
                 <label>Offered Salary <span class="req">*</span></label>
@@ -285,6 +416,10 @@ interface CandidateOption {
                 <span class="detail-value">{{ viewingOffer.job_title }}</span>
               </div>
               <div class="detail-item">
+                <span class="detail-label"><i class="fas fa-id-badge"></i> Designation</span>
+                <span class="detail-value">{{ viewingOffer.designation || '-' }}</span>
+              </div>
+              <div class="detail-item">
                 <span class="detail-label">Salary</span>
                 <span class="detail-value">{{ viewingOffer.offered_salary }} {{ viewingOffer.salary_currency }}</span>
               </div>
@@ -299,11 +434,11 @@ interface CandidateOption {
               <div class="detail-item">
                 <span class="detail-label"><i class="fas fa-info-circle"></i> Status</span>
                 <span class="status-badge" [attr.data-status]="viewingOffer.status.toLowerCase()">
-                  <i class="fas" [ngClass]="getStatusIcon(viewingOffer.status)"></i> {{ viewingOffer.status }}
+                  <i class="fas" [ngClass]="getStatusIcon(viewingOffer.status)"></i> {{ getStatusLabel(viewingOffer.status) }}
                 </span>
               </div>
-              <div class="detail-item" *ngIf="viewingOffer.status === 'ARGUED'">
-                <span class="detail-label"><i class="fas fa-comment-dots"></i> Candidate Argue Reason</span>
+              <div class="detail-item" *ngIf="viewingOffer.status === 'ARGUED' || viewingOffer.status === 'NEGOTIATED'">
+                <span class="detail-label"><i class="fas fa-comment-dots"></i> Candidate Negotiation Reason</span>
                 <span class="detail-value">{{ viewingOffer.argued_reason || '-' }}</span>
               </div>
               <div class="detail-item">
@@ -357,6 +492,7 @@ interface CandidateOption {
     .stat-icon-wrap { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
     .stat-icon-wrap.clr-gray { background: #f1f5f9; color: #64748b; }
     .stat-icon-wrap.clr-blue { background: #dbeafe; color: #2563eb; }
+    .stat-icon-wrap.clr-purple { background: #ede9fe; color: #5b21b6; }
     .stat-icon-wrap.clr-green { background: #dcfce7; color: #16a34a; }
     .stat-icon-wrap.clr-red { background: #fee2e2; color: #dc2626; }
     .stat-val { font-size: 24px; font-weight: 700; color: #1e293b; }
@@ -410,6 +546,7 @@ interface CandidateOption {
       &[data-status="accepted"] { background: #dcfce7; color: #166534; }
       &[data-status="rejected"] { background: #fee2e2; color: #991b1b; }
       &[data-status="argued"] { background: #ede9fe; color: #5b21b6; }
+      &[data-status="negotiated"] { background: #ede9fe; color: #5b21b6; }
       &[data-status="expired"] { background: #fef3c7; color: #92400e; }
     }
     .argued-reason { margin-top: 6px; color: #5b21b6; font-size: 12px; line-height: 1.4; i { margin-right: 4px; } }
@@ -439,6 +576,86 @@ interface CandidateOption {
     .form-input { width: 100%; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box; &:focus { border-color: #2563eb; } }
     .btn-cancel { padding: 10px 20px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; font-weight: 600; color: #64748b; &:hover { background: #f1f5f9; } }
     .btn-submit { padding: 10px 20px; border: none; border-radius: 8px; background: #2563eb; color: #fff; cursor: pointer; font-weight: 600; i { margin-right: 6px; } &:hover { background: #1d4ed8; } &:disabled { opacity: 0.5; } }
+    .form-divider { height: 1px; background: #e2e8f0; margin: 16px 0; }
+    .doc-help { font-size: 12px; color: #64748b; margin-top: -2px; margin-bottom: 10px; }
+    .doc-row { grid-template-columns: 1fr 1fr; }
+    .doc-files { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; margin-top: 10px; }
+    .doc-file { font-size: 12px; color: #334155; i { color: #64748b; margin-right: 6px; } }
+    .doc-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; }
+    .btn-doc-secondary {
+      padding: 8px 14px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer;
+      font-weight: 700; font-size: 12px; color: #64748b;
+      &:hover { background: #f1f5f9; }
+      &:disabled { opacity: 0.55; cursor: not-allowed; }
+    }
+    .btn-doc-primary {
+      padding: 8px 14px; border-radius: 8px; border: none; background: #0f172a; cursor: pointer;
+      font-weight: 700; font-size: 12px; color: #fff;
+      i { margin-right: 6px; }
+      &:hover { background: #111827; }
+      &:disabled { opacity: 0.55; cursor: not-allowed; }
+    }
+    .doc-status { margin-top: 10px; font-size: 12px; color: #334155; }
+
+    /* Offer letter mode */
+    .segmented {
+      display: inline-flex;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      background: #f8fafc;
+      margin-bottom: 12px;
+    }
+    .seg-btn {
+      border: none;
+      background: transparent;
+      padding: 8px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 12px;
+      color: #64748b;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+      i { font-size: 12px; }
+      &:hover { background: #eef2ff; color: #1e40af; }
+      &.active {
+        background: #ffffff;
+        color: #0f172a;
+        box-shadow: 0 1px 0 rgba(15,23,42,0.08);
+      }
+    }
+    .letter-panel {
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      background: linear-gradient(180deg, #ffffff, #fbfdff);
+      padding: 14px;
+    }
+    .letter-panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .letter-title { display: flex; gap: 12px; align-items: flex-start; }
+    .letter-badge {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      &.gen { background: #dcfce7; color: #16a34a; }
+      &.man { background: #dbeafe; color: #2563eb; }
+    }
+    .letter-h { font-weight: 800; color: #0f172a; font-size: 13px; margin-bottom: 2px; }
+    .letter-sub { font-size: 12px; color: #64748b; line-height: 1.35; }
+    .letter-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+
+    .mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .mini-item { border: 1px dashed #e2e8f0; background: #f8fafc; border-radius: 12px; padding: 10px 12px; }
+    .mini-k { font-size: 11px; font-weight: 800; color: #94a3b8; margin-bottom: 3px; }
+    .mini-v { font-size: 12px; font-weight: 700; color: #334155; }
 
     /* Detail Grid */
     .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -470,13 +687,22 @@ export class OffersTab implements OnInit {
   showCreateModal = false;
   isSubmitting = false;
   offerCandidates: CandidateOption[] = [];
-  newOffer = { application_id: '', offered_salary: '', salary_currency: 'INR', joining_date: '', expiration_date: '' };
+  newOffer = { application_id: '', designation: '', offered_salary: '', salary_currency: 'INR', joining_date: '', expiration_date: '' };
 
-  // Edit & resend modal (for argued offers)
+  // Optional documents upload (Create modal)
+  docUploadType: 'OFFER_LETTER' | 'OFFER_ATTACHMENT' | 'NDA' | 'ID_PROOF' | 'OTHER' = 'OFFER_LETTER';
+  docFiles: File[] = [];
+  isUploadingDocs = false;
+  docUploadStatus = '';
+
+  offerLetterMode: 'GENERATED' | 'MANUAL' = 'GENERATED';
+  isGeneratingLetter = false;
+
+  // Edit & resend modal (for negotiated offers)
   showEditResendModal = false;
   isEditSubmitting = false;
   editingOffer: OfferRow | null = null;
-  editOffer = { offered_salary: '', salary_currency: 'INR', joining_date: '', expiration_date: '' };
+  editOffer = { designation: '', offered_salary: '', salary_currency: 'INR', joining_date: '', expiration_date: '' };
 
   // View Modal
   viewingOffer: OfferRow | null = null;
@@ -525,6 +751,7 @@ export class OffersTab implements OnInit {
           application_id: o['application_id'] || '',
           candidate_name: candMap.get(app['candidate_id'] || '') || 'Unknown',
           job_title: jobMap.get(app['requisition_id'] || '') || 'Unknown',
+          designation: o['temp3'] || o['Temp3'] || '',
           offered_salary: o['offered_salary'] || '',
           salary_currency: o['salary_currency'] || 'INR',
           joining_date: o['joining_date'] || '',
@@ -550,7 +777,8 @@ export class OffersTab implements OnInit {
         .map(a => ({
           application_id: a['application_id'] || '',
           candidate_name: candMap.get(a['candidate_id'] || '') || 'Unknown',
-          job_title: jobMap.get(a['requisition_id'] || '') || 'Unknown'
+          job_title: jobMap.get(a['requisition_id'] || '') || 'Unknown',
+          candidate_id: a['candidate_id'] || ''
         }));
 
       this.computeStats();
@@ -566,11 +794,13 @@ export class OffersTab implements OnInit {
   computeStats(): void {
     const draft = this.allOffers.filter(o => o.status === 'DRAFT').length;
     const sent = this.allOffers.filter(o => o.status === 'SENT').length;
+    const negotiated = this.allOffers.filter(o => o.status === 'NEGOTIATED' || o.status === 'ARGUED').length;
     const accepted = this.allOffers.filter(o => o.status === 'ACCEPTED').length;
     const rejected = this.allOffers.filter(o => o.status === 'REJECTED').length;
     this.stats = [
       { value: draft, label: 'Drafts', icon: 'fa-file', colorClass: 'clr-gray' },
       { value: sent, label: 'Sent', icon: 'fa-paper-plane', colorClass: 'clr-blue' },
+      { value: negotiated, label: 'Negotiated', icon: 'fa-scale-balanced', colorClass: 'clr-purple' },
       { value: accepted, label: 'Accepted', icon: 'fa-check-circle', colorClass: 'clr-green' },
       { value: rejected, label: 'Rejected', icon: 'fa-times-circle', colorClass: 'clr-red' },
     ];
@@ -578,7 +808,13 @@ export class OffersTab implements OnInit {
 
   applyFilters(): void {
     let list = [...this.allOffers];
-    if (this.statusFilter) list = list.filter(o => o.status === this.statusFilter);
+    if (this.statusFilter) {
+      if (this.statusFilter === 'NEGOTIATED') {
+        list = list.filter(o => o.status === 'NEGOTIATED' || o.status === 'ARGUED');
+      } else {
+        list = list.filter(o => o.status === this.statusFilter);
+      }
+    }
     if (this.searchQuery.trim()) {
       const q = this.searchQuery.toLowerCase();
       list = list.filter(o => o.candidate_name.toLowerCase().includes(q) || o.job_title.toLowerCase().includes(q));
@@ -588,7 +824,11 @@ export class OffersTab implements OnInit {
 
   // ── CREATE ──
   openCreateModal(): void {
-    this.newOffer = { application_id: '', offered_salary: '', salary_currency: 'INR', joining_date: '', expiration_date: '' };
+    this.newOffer = { application_id: '', designation: '', offered_salary: '', salary_currency: 'INR', joining_date: '', expiration_date: '' };
+    this.offerLetterMode = 'GENERATED';
+    this.docUploadType = 'OFFER_LETTER';
+    this.docFiles = [];
+    this.docUploadStatus = '';
     this.showCreateModal = true;
   }
 
@@ -599,6 +839,7 @@ export class OffersTab implements OnInit {
   async submitOffer(): Promise<void> {
     if (
       !this.newOffer.application_id ||
+      !String(this.newOffer.designation || '').trim() ||
       this.newOffer.offered_salary === '' ||
       !this.newOffer.joining_date ||
       !this.newOffer.expiration_date
@@ -651,7 +892,12 @@ export class OffersTab implements OnInit {
     this.isSubmitting = true;
     try {
       // Required by DB FK: ts_offers_created_by_user_fkey -> ts_users
-      const payload = { ...this.newOffer, salary_currency: currency, created_by_user: this.loggedInUserId };
+      const payload = {
+        ...this.newOffer,
+        salary_currency: currency,
+        created_by_user: this.loggedInUserId,
+        temp3: String(this.newOffer.designation || '').trim()
+      };
       await this.soap.insertOffer(this.newOffer.application_id, payload);
       this.toast('Offer created successfully!', 'success');
       this.showCreateModal = false;
@@ -725,9 +971,10 @@ export class OffersTab implements OnInit {
   }
 
   openEditResendModal(o: OfferRow): void {
-    if (o.status !== 'ARGUED') return;
+    if (o.status !== 'ARGUED' && o.status !== 'NEGOTIATED') return;
     this.editingOffer = o;
     this.editOffer = {
+      designation: o.designation || '',
       offered_salary: o.offered_salary || '',
       salary_currency: o.salary_currency || 'INR',
       joining_date: o.joining_date || '',
@@ -741,7 +988,7 @@ export class OffersTab implements OnInit {
     if (this.isEditSubmitting) return;
     this.showEditResendModal = false;
     this.editingOffer = null;
-    this.editOffer = { offered_salary: '', salary_currency: 'INR', joining_date: '', expiration_date: '' };
+    this.editOffer = { designation: '', offered_salary: '', salary_currency: 'INR', joining_date: '', expiration_date: '' };
   }
 
   async submitEditResend(): Promise<void> {
@@ -749,6 +996,7 @@ export class OffersTab implements OnInit {
     if (!o) return;
 
     if (
+      !String(this.editOffer.designation || '').trim() ||
       this.editOffer.offered_salary === '' ||
       !this.editOffer.joining_date ||
       !this.editOffer.expiration_date
@@ -793,6 +1041,7 @@ export class OffersTab implements OnInit {
     this.isEditSubmitting = true;
     try {
       await this.soap.updateOfferDetails(o.offer_id, {
+        temp3: String(this.editOffer.designation || '').trim(),
         offered_salary: this.editOffer.offered_salary,
         salary_currency: currency,
         joining_date: this.editOffer.joining_date,
@@ -802,6 +1051,7 @@ export class OffersTab implements OnInit {
         updated_by: this.loggedInUserId
       });
 
+      o.designation = String(this.editOffer.designation || '').trim();
       o.offered_salary = this.editOffer.offered_salary;
       o.salary_currency = currency;
       o.joining_date = this.editOffer.joining_date;
@@ -856,10 +1106,16 @@ export class OffersTab implements OnInit {
       case 'SENT': return 'fa-paper-plane';
       case 'ACCEPTED': return 'fa-check-circle';
       case 'REJECTED': return 'fa-times-circle';
-      case 'ARGUED': return 'fa-scale-balanced';
+      case 'ARGUED':
+      case 'NEGOTIATED': return 'fa-scale-balanced';
       case 'EXPIRED': return 'fa-clock';
       default: return 'fa-circle';
     }
+  }
+
+  getStatusLabel(status: string): string {
+    if (status === 'ARGUED') return 'NEGOTIATED';
+    return status || '-';
   }
 
   isExpired(o: OfferRow): boolean {
@@ -886,5 +1142,275 @@ export class OffersTab implements OnInit {
     this.showToast = true;
     if (this.toastTimeout) clearTimeout(this.toastTimeout);
     this.toastTimeout = setTimeout(() => this.showToast = false, 4000);
+  }
+
+  // ── OPTIONAL DOC UPLOAD (CREATE MODAL) ──
+  onDocFilesSelected(ev: Event): void {
+    const input = ev.target as HTMLInputElement | null;
+    const files = input?.files ? Array.from(input.files) : [];
+    this.docFiles = files;
+    this.docUploadStatus = '';
+  }
+
+  clearDocFiles(): void {
+    this.docFiles = [];
+    this.docUploadStatus = '';
+  }
+
+  private fileToDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Failed to read file.'));
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async uploadDocsForSelectedCandidate(): Promise<void> {
+    if (this.isUploadingDocs) return;
+    if (!this.newOffer.application_id || this.docFiles.length === 0) return;
+
+    const selected = this.offerCandidates.find(c => c.application_id === this.newOffer.application_id);
+    const candidateId = selected?.candidate_id || '';
+    if (!candidateId) {
+      this.docUploadStatus = 'Candidate not found for the selected application.';
+      return;
+    }
+
+    this.isUploadingDocs = true;
+    this.docUploadStatus = 'Uploading...';
+    try {
+      for (const f of this.docFiles) {
+        const dataUrl = await this.fileToDataUrl(f);
+        await this.soap.uploadCandidateDocument(candidateId, this.docUploadType, dataUrl);
+      }
+      this.docUploadStatus = `Uploaded ${this.docFiles.length} file(s).`;
+      this.docFiles = [];
+    } catch (e) {
+      this.docUploadStatus = 'Failed to upload document(s).';
+    } finally {
+      this.isUploadingDocs = false;
+    }
+  }
+
+  setOfferLetterMode(mode: 'GENERATED' | 'MANUAL'): void {
+    this.offerLetterMode = mode;
+    this.docUploadStatus = '';
+    if (mode === 'MANUAL' && !this.docUploadType) this.docUploadType = 'OFFER_LETTER';
+  }
+
+  getSelectedCandidateLabel(): string {
+    const selected = this.offerCandidates.find(c => c.application_id === this.newOffer.application_id);
+    if (!selected) return '-';
+    return `${selected.candidate_name} — ${selected.job_title}`;
+  }
+
+  canGenerateOfferLetter(): boolean {
+    if (!this.newOffer.application_id) return false;
+    if (!String(this.newOffer.designation || '').trim()) return false;
+    if (this.newOffer.offered_salary === '') return false;
+    if (!this.newOffer.joining_date || !this.newOffer.expiration_date) return false;
+
+    const allowedCurrencies = new Set(['INR', 'USD', 'EUR', 'GBP']);
+    const currency = (this.newOffer.salary_currency || '').toUpperCase();
+    if (!allowedCurrencies.has(currency)) return false;
+
+    const offeredSalaryNum = Number(this.newOffer.offered_salary);
+    if (!Number.isFinite(offeredSalaryNum) || offeredSalaryNum <= 0) return false;
+
+    const joinDate = this.parseLocalDate(this.newOffer.joining_date);
+    const expDate = this.parseLocalDate(this.newOffer.expiration_date);
+    const today = this.getLocalTodayMidnight();
+    if (!joinDate || !expDate) return false;
+    if (joinDate <= today) return false;
+    if (expDate <= today) return false;
+    if (expDate >= joinDate) return false;
+    return true;
+  }
+
+  async previewGeneratedOfferLetter(): Promise<void> {
+    if (this.isGeneratingLetter) return;
+    if (!this.canGenerateOfferLetter()) {
+      this.toast('Fill offer details first to generate the letter.', 'error');
+      return;
+    }
+    try {
+      this.isGeneratingLetter = true;
+      const doc = await this.buildOfferLetterPdfForCreateModal();
+      const fileName = this.getOfferLetterFileName();
+      doc.save(fileName);
+    } catch (e) {
+      console.error('[Offers] Failed to preview offer letter:', e);
+      this.toast('Failed to generate offer letter preview.', 'error');
+    } finally {
+      this.isGeneratingLetter = false;
+    }
+  }
+
+  async generateAndUploadOfferLetter(): Promise<void> {
+    if (this.isGeneratingLetter) return;
+    if (!this.canGenerateOfferLetter()) {
+      this.toast('Fill offer details first to generate the letter.', 'error');
+      return;
+    }
+
+    const selected = this.offerCandidates.find(c => c.application_id === this.newOffer.application_id);
+    const candidateId = selected?.candidate_id || '';
+    if (!candidateId) {
+      this.toast('Candidate not found for the selected application.', 'error');
+      return;
+    }
+
+    this.isGeneratingLetter = true;
+    this.docUploadStatus = 'Generating offer letter...';
+    try {
+      const doc = await this.buildOfferLetterPdfForCreateModal();
+      const dataUrl = doc.output('datauristring');
+      await this.soap.uploadCandidateDocument(candidateId, 'OFFER_LETTER', dataUrl);
+      this.docUploadStatus = 'Offer letter generated and uploaded successfully.';
+      this.toast('Offer letter uploaded to candidate documents.', 'success');
+    } catch (e) {
+      console.error('[Offers] Failed to generate/upload offer letter:', e);
+      this.docUploadStatus = 'Failed to generate/upload offer letter.';
+      this.toast('Failed to generate/upload offer letter.', 'error');
+    } finally {
+      this.isGeneratingLetter = false;
+    }
+  }
+
+  private getOfferLetterFileName(): string {
+    const selected = this.offerCandidates.find(c => c.application_id === this.newOffer.application_id);
+    const safeJob = this.toSafeFileName(selected?.job_title || 'job');
+    const safeCandidate = this.toSafeFileName(selected?.candidate_name || 'candidate');
+    return `offer-letter-${safeCandidate}-${safeJob}.pdf`;
+  }
+
+  private toSafeFileName(input: string): string {
+    return String(input || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'file';
+  }
+
+  private formatReadableDate(d: string): string {
+    if (!d) return '-';
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return d;
+    return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' });
+  }
+
+  private async buildOfferLetterPdfForCreateModal(): Promise<jsPDF> {
+    const selected = this.offerCandidates.find(c => c.application_id === this.newOffer.application_id);
+    const candidateName = selected?.candidate_name || 'Candidate';
+    const jobTitle = selected?.job_title || 'Job';
+
+    const offeredSalary = `${this.newOffer.offered_salary || '-'} ${(this.newOffer.salary_currency || '').toUpperCase()}`.trim();
+    const joiningDate = this.formatReadableDate(this.newOffer.joining_date || '');
+    const expiryDate = this.formatReadableDate(this.newOffer.expiration_date || '');
+    const generatedOn = this.formatReadableDate(new Date().toISOString());
+
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const left = 48;
+    let y = 56;
+
+    doc.setFillColor(11, 61, 145);
+    doc.rect(0, 0, pageWidth, 78, 'F');
+    const logoDataUrl = await this.getImageDataUrl('/assets/images/adnatelogo.png').catch(() => '');
+    if (logoDataUrl) {
+      try {
+        doc.addImage(logoDataUrl, 'PNG', pageWidth - 130, 16, 90, 46);
+      } catch {
+        // Non-blocking fallback.
+      }
+    }
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.text('Offer Letter', left, 35);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text('Recruitment Management System', left, 54);
+
+    y = 110;
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(11);
+    doc.text(`Date: ${generatedOn}`, left, y);
+    y += 24;
+
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Dear ${candidateName},`, left, y);
+    y += 24;
+
+    const bodyLine =
+      `We are pleased to offer you the position of ${jobTitle}. ` +
+      'Please find your offer details below:';
+    const bodyLines = doc.splitTextToSize(bodyLine, pageWidth - left * 2);
+    doc.text(bodyLines, left, y);
+    y += bodyLines.length * 15 + 12;
+
+    const rows: Array<[string, string]> = [
+      ['Application ID', this.newOffer.application_id || '-'],
+      ['Job Title', jobTitle || '-'],
+      ['Designation', String(this.newOffer.designation || '').trim() || '-'],
+      ['Offered Salary', offeredSalary || '-'],
+      ['Joining Date', joiningDate || '-'],
+      ['Offer Valid Until', expiryDate || '-']
+    ];
+
+    const tableTop = y - 12;
+    const tableHeight = rows.length * 22 + 16;
+    doc.setDrawColor(203, 213, 225);
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(left - 8, tableTop, pageWidth - left * 2 + 16, tableHeight, 6, 6, 'FD');
+
+    rows.forEach(([k, v]) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${k}:`, left, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(String(v), left + 130, y);
+      y += 22;
+    });
+
+    y += 10;
+    const note = 'Please review and respond to the offer in the portal before the expiry date.';
+    const noteLines = doc.splitTextToSize(note, pageWidth - left * 2);
+    doc.text(noteLines, left, y);
+    y += noteLines.length * 15 + 24;
+
+    doc.text('Warm regards,', left, y);
+    y += 18;
+    doc.setFont('helvetica', 'bold');
+    doc.text('HR Team', left, y);
+    y += 16;
+    doc.setFont('helvetica', 'normal');
+    doc.text('Adnate IT Solutions', left, y);
+
+    y += 36;
+    doc.setDrawColor(148, 163, 184);
+    doc.line(left, y, left + 200, y);
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Authorized Signature', left, y + 14);
+
+    doc.setDrawColor(226, 232, 240);
+    doc.line(left, pageHeight - 42, pageWidth - left, pageHeight - 42);
+    doc.setFontSize(9);
+    doc.text('This is a system-generated offer letter.', left, pageHeight - 26);
+
+    return doc;
+  }
+
+  private async getImageDataUrl(url: string): Promise<string> {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Failed to load image: ${url}`);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Failed to convert image to data URL'));
+      reader.readAsDataURL(blob);
+    });
   }
 }

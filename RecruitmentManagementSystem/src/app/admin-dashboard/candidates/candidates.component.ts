@@ -60,7 +60,7 @@ export class CandidatesComponent implements OnInit {
         this.soapService.getJobRequisitions(),
         this.soapService.getDepartments(),
         this.soapService.getPipelineStages(),
-        this.soapService.getAllCandidates(),
+        this.soapService.getCandidates(),
         this.soapService.getApplications()
       ]);
 
@@ -96,27 +96,40 @@ export class CandidatesComponent implements OnInit {
       // Build rows from all candidates (not just those with applications)
       this.allCandidates = candidatesRaw.map((c: any) => {
         // Find the latest application for this candidate to show relevant role/status
-        const candApps = appsRaw.filter((a: any) => a['candidate_id'] === c['candidate_id']);
+        const candApps = appsRaw.filter((a: any) => 
+          (a['candidate_id'] || a['Candidate_id']) === (c['candidate_id'] || c['Candidate_id'])
+        );
         const latestApp = candApps.length > 0 ? candApps[candApps.length - 1] : null;
         
-        const name = `${c['first_name']} ${c['last_name']}`.trim();
+        const getVal = (obj: any, key: string) => {
+          if (!obj) return '';
+          const capitalized = key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
+          return obj[key] || obj[capitalized] || obj[key.toLowerCase()] || '';
+        };
+
+        const fn = getVal(c, 'first_name');
+        const ln = getVal(c, 'last_name');
+        const name = `${fn} ${ln}`.trim() || 'No Name';
+        const cid = getVal(c, 'candidate_id');
+
         return {
-          application_id: latestApp?.['application_id'] || 'N/A',
-          candidate_id: c['candidate_id'],
-          requisition_id: latestApp?.['requisition_id'] || 'None',
+          application_id: getVal(latestApp, 'application_id') || 'N/A',
+          candidate_id: cid,
+          requisition_id: getVal(latestApp, 'requisition_id') || 'None',
           candidate_name: name,
-          candidate_email: c['email'] || 'N/A',
-          candidate_phone: c['phone'] || 'N/A',
-          experience_years: c['experience_years'] || '0',
-          location: c['location'] || 'N/A',
-          source: latestApp?.['source'] || 'Direct',
-          status: latestApp ? this.mapStatus(latestApp['status']) : 'Registered',
-          current_stage_id: latestApp?.['current_stage_id'] || '',
-          stage_name: latestApp ? (stageMap.get(latestApp['current_stage_id']) || 'New') : 'N/A',
-          applied_at: latestApp?.['applied_at'] || latestApp?.['created_at'] || c['created_at'] || '',
+          candidate_email: getVal(c, 'email') || 'N/A',
+          candidate_phone: getVal(c, 'phone') || 'N/A',
+          experience_years: getVal(c, 'experience_years') || '0',
+          location: getVal(c, 'location') || 'N/A',
+          source: getVal(latestApp, 'source') || 'Direct',
+          status: latestApp ? this.mapStatus(getVal(latestApp, 'status'), getVal(c, 'temp1')) : (getVal(c, 'temp1') === 'BLACKLISTED' ? 'Blacklisted' : 'Registered'),
+          current_stage_id: getVal(latestApp, 'current_stage_id'),
+          stage_name: latestApp ? (stageMap.get(getVal(latestApp, 'current_stage_id')) || 'New') : 'N/A',
+          applied_at: getVal(latestApp, 'applied_at') || getVal(latestApp, 'created_at') || getVal(c, 'created_at') || '',
           _raw: c
         };
       });
+      console.log('Admin ALL Candidates', this.allCandidates);
 
       this.applyFilters();
     } catch (err) {
@@ -126,7 +139,8 @@ export class CandidatesComponent implements OnInit {
     }
   }
 
-  mapStatus(rawStatus: string): string {
+  mapStatus(rawStatus: string, temp1?: string): string {
+    if (temp1 === 'BLACKLISTED') return 'Blacklisted';
     const s = (rawStatus || '').toUpperCase();
     if (s === 'ACTIVE') return 'In Review';
     if (s === 'HIRED') return 'Hired';
@@ -138,7 +152,11 @@ export class CandidatesComponent implements OnInit {
     let list = this.allCandidates;
 
     if (this.statusFilter !== 'All Statuses') {
-      list = list.filter(c => c.status === this.statusFilter);
+      if (this.statusFilter === 'Blacklisted') {
+        list = list.filter(c => this.isBlacklisted(c));
+      } else {
+        list = list.filter(c => c.status === this.statusFilter && !this.isBlacklisted(c));
+      }
     }
 
     if (this.searchQuery.trim()) {
@@ -195,6 +213,83 @@ export class CandidatesComponent implements OnInit {
 
   getJobTitle(reqId: string): string {
     return this.jobs.find(j => j.requisition_id === reqId)?.title || 'Unknown Role';
+  }
+
+  // ═══════════════════════════════════════════════════
+  //  REMOVE FROM BLACKLIST MODAL
+  // ═══════════════════════════════════════════════════
+
+  removingBlacklistCandidate: CandidateRow | null = null;
+  isSubmittingRemoveBlacklist = false;
+
+  isBlacklisted(c: CandidateRow): boolean {
+    return (c._raw?.['temp1'] || c._raw?.['TEMP1']) === 'BLACKLISTED';
+  }
+
+  openRemoveBlacklistModal(c: CandidateRow) {
+    this.removingBlacklistCandidate = c;
+  }
+
+  closeRemoveBlacklistModal() {
+    this.removingBlacklistCandidate = null;
+  }
+
+  async confirmRemoveBlacklist(): Promise<void> {
+    if (!this.removingBlacklistCandidate) return;
+    this.isSubmittingRemoveBlacklist = true;
+
+    try {
+      await this.soapService.removeFromBlacklist(this.removingBlacklistCandidate);
+      const updatedCandidateId = this.removingBlacklistCandidate.candidate_id;
+      this.closeRemoveBlacklistModal();
+      
+      // Close details modal if open for the same candidate
+      if (this.selectedCandidate && this.selectedCandidate.candidate_id === updatedCandidateId) {
+        this.closeDetails();
+      }
+      
+      await this.loadData();
+    } catch (e) {
+      console.error('Failed to remove from blacklist:', e);
+      // Fallback alert for hard errors, but UI flow is now modal-based
+      alert('Failed to remove candidate from blacklist.');
+    } finally {
+      this.isSubmittingRemoveBlacklist = false;
+    }
+  }
+
+  // Modal State
+  blacklistingCandidate: CandidateRow | null = null;
+  blacklistDuration: string = '3';
+  blacklistReason: string = '';
+  isSubmittingBlacklist = false;
+
+  openBlacklistModal(c: CandidateRow) {
+    this.blacklistingCandidate = c;
+    this.blacklistDuration = '3';
+    this.blacklistReason = '';
+  }
+
+  closeBlacklistModal() {
+    this.blacklistingCandidate = null;
+    this.isSubmittingBlacklist = false;
+  }
+
+  async submitBlacklist() {
+    if (!this.blacklistingCandidate) return;
+    this.isSubmittingBlacklist = true;
+
+    try {
+      const duration = this.blacklistDuration === 'FOREVER' ? 'FOREVER' : parseInt(this.blacklistDuration, 10);
+      await this.soapService.blacklistCandidate(this.blacklistingCandidate, duration, this.blacklistReason);
+      
+      this.closeBlacklistModal();
+      await this.loadData();
+    } catch (err) {
+      console.error('Failed to blacklist candidate:', err);
+      alert('Failed to blacklist candidate.');
+      this.isSubmittingBlacklist = false;
+    }
   }
 
   async viewDetails(candidate: CandidateRow) {

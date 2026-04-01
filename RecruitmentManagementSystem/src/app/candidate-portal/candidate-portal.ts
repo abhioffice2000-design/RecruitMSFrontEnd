@@ -32,6 +32,7 @@ export class CandidatePortal implements OnInit, OnDestroy {
 
   navItems = [
     { route: 'dashboard', label: 'Dashboard', icon: 'fas fa-th-large' },
+    { route: 'inbox', label: 'Inbox', icon: 'fas fa-envelope' },
     { route: 'jobs', label: 'Browse Jobs', icon: 'fas fa-search' },
     { route: 'applications', label: 'My Applications', icon: 'fas fa-file-alt' },
     { route: 'interviews', label: 'My Interviews', icon: 'fas fa-video' },

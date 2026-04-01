@@ -2,8 +2,13 @@ import { Component, OnInit } from '@angular/core';
 import { MockDataService } from '../../services/mock-data.service';
 import { Job } from '../../models/job.model';
 
+import { CommonModule } from '@angular/common';
+import { RouterModule } from '@angular/router';
+
 @Component({
   selector: 'app-candidate-saved-jobs',
+  standalone: true,
+  imports: [CommonModule, RouterModule],
   template: `
     <div class="saved-jobs-page animate-fade-in">
       <div class="page-header">

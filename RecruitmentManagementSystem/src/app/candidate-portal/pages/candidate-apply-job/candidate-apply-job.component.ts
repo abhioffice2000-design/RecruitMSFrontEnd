@@ -7,7 +7,7 @@ import { AiResumeService } from '../../../services/ai-resume.service';
 import { buildMailBody } from '../../../services/mail-templates';
 import { fileToResumeDataUrl } from '../../../shared/resume-storage.util';
 import type { MailEvent } from '../../../services/mail-templates';
-
+import { NotificationService } from '../../../services/notification.service';
 declare var $: any;
 
 // ─── Interfaces for dynamic form arrays ────────────────────
@@ -137,7 +137,8 @@ export class CandidateApplyJobComponent implements OnInit {
     private aiResume: AiResumeService,
     private route: ActivatedRoute,
     public router: Router,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private notifyService: NotificationService
   ) {}
 
   ngOnInit(): void {
@@ -793,6 +794,13 @@ export class CandidateApplyJobComponent implements OnInit {
         linkedin_url:           this.form.linkedin_url.trim(),
         willing_to_relocate:    this.form.willing_to_relocate ? 'true' : 'false',
         available_joining_date: this.form.available_joining_date
+      });
+
+      // Notify HRs about new application
+      this.notifyService.sendNotification('CANDIDATE_APPLIED', {
+        candidateName: `${this.form.first_name} ${this.form.last_name}`,
+        jobTitle: this.jobTitle,
+        requisitionId: this.requisitionId
       });
 
       // Mail candidate about application received (non-blocking)

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { isSafeInternalReturnUrl } from '../guards/auth-session';
+import { NotificationService } from '../services/notification.service';
 declare var $: any;
 
 @Component({
@@ -34,7 +35,8 @@ export class LoginComponent implements OnInit {
   constructor(
     private router: Router,
     private route: ActivatedRoute,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private notifyService: NotificationService
   ) {}
 
   ngOnInit(): void {
@@ -270,7 +272,7 @@ export class LoginComponent implements OnInit {
             } catch {
               /* ignore */
             }
-            self.doRedirect('/candidate/dashboard', 'Candidate Portal');
+            self.doRedirect('/candidate/dashboard', 'Candidate Portal', username);
             return;
           }
 
@@ -285,7 +287,7 @@ export class LoginComponent implements OnInit {
 
           for (const entry of roleRouteMap) {
             if (roles.includes(entry.role)) {
-              self.doRedirect(entry.route, entry.label);
+              self.doRedirect(entry.route, entry.label, username);
               return;
             }
           }
@@ -302,7 +304,7 @@ export class LoginComponent implements OnInit {
       });
   }
 
-  private doRedirect(route: string, label: string) {
+  private doRedirect(route: string, label: string, username: string) {
     try {
       sessionStorage.setItem('loggedInPortalLabel', label);
     } catch {
@@ -312,6 +314,10 @@ export class LoginComponent implements OnInit {
     const target =
       returnUrl && isSafeInternalReturnUrl(returnUrl) ? returnUrl : route;
     this.showToast(`Login successful. Redirecting to ${label}...`, 'success');
+    
+    // Notify middleware about LOGIN
+    this.notifyService.sendNotification('LOGIN', { username, portal: label });
+    
     setTimeout(() => {
       this.router.navigateByUrl(target).then((success) => {
         console.log(`Navigation to ${target}:`, success ? 'successful' : 'failed');

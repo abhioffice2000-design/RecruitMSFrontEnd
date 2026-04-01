@@ -1,53 +1,26 @@
-<div
-  class="dashboard-layout"
-  [class.mobile-nav-open]="mobileNavOpen"
-  [class.sidebar-collapsed]="sidebarCollapsed"
->
-  <div
-    class="mobile-nav-backdrop"
-    *ngIf="mobileNavOpen"
-    (click)="mobileNavOpen = false"
-    aria-hidden="true"
-  ></div>
-  <button
-    type="button"
-    class="mobile-menu-btn"
-    (click)="mobileNavOpen = !mobileNavOpen"
-    aria-label="Open navigation menu"
-  >
+<div class="dashboard-layout" [class.mobile-nav-open]="mobileNavOpen" [class.sidebar-collapsed]="sidebarCollapsed">
+  <div class="mobile-nav-backdrop" *ngIf="mobileNavOpen" (click)="mobileNavOpen = false" aria-hidden="true"></div>
+  <button type="button" class="mobile-menu-btn" (click)="mobileNavOpen = !mobileNavOpen"
+    aria-label="Open navigation menu">
     <i class="fas fa-bars" aria-hidden="true"></i>
   </button>
   <aside class="sidebar">
     <div class="logo">
-      <img
-        src="assets/images/adnatelogo.png"
-        alt="Adnate IT Solutions"
-        class="logo-img"
-      />
+      <img src="assets/images/adnatelogo.png" alt="Adnate IT Solutions" class="logo-img" />
     </div>
-    
+
     <nav class="nav-menu">
-      <a
-        routerLink="dashboard"
-        routerLinkActive="active"
-        class="nav-item"
-        (click)="mobileNavOpen = false"
-        [attr.title]="sidebarCollapsed ? 'Dashboard' : null"
-      >
+      <a routerLink="dashboard" routerLinkActive="active" class="nav-item" (click)="mobileNavOpen = false"
+        [attr.title]="sidebarCollapsed ? 'Dashboard' : null">
         <span class="icon"><i class="fas fa-th-large"></i></span>
         <span class="nav-label">Dashboard</span>
       </a>
-      <a
-        routerLink="inbox"
-        routerLinkActive="active"
-        class="nav-item"
-        (click)="mobileNavOpen = false"
-        [attr.title]="sidebarCollapsed ? 'Inbox' : null"
-      >
+      <a routerLink="inbox" routerLinkActive="active" class="nav-item" (click)="mobileNavOpen = false"
+        [attr.title]="sidebarCollapsed ? 'Inbox' : null">
         <span class="icon"><i class="fas fa-envelope"></i></span>
         <span class="nav-label">Inbox</span>
       </a>
-      <a
+      <!-- <a
         routerLink="calendar"
         routerLinkActive="active"
         class="nav-item"
@@ -56,34 +29,19 @@
       >
         <span class="icon"><i class="fas fa-calendar-alt"></i></span>
         <span class="nav-label">Calendar</span>
-      </a>
-      <a
-        routerLink="jobs"
-        routerLinkActive="active"
-        class="nav-item"
-        (click)="mobileNavOpen = false"
-        [attr.title]="sidebarCollapsed ? 'Jobs' : null"
-      >
+      </a> -->
+      <a routerLink="jobs" routerLinkActive="active" class="nav-item" (click)="mobileNavOpen = false"
+        [attr.title]="sidebarCollapsed ? 'Jobs' : null">
         <span class="icon"><i class="fas fa-briefcase"></i></span>
         <span class="nav-label">Jobs</span>
       </a>
-      <a
-        routerLink="candidates"
-        routerLinkActive="active"
-        class="nav-item"
-        (click)="mobileNavOpen = false"
-        [attr.title]="sidebarCollapsed ? 'Candidates' : null"
-      >
+      <a routerLink="candidates" routerLinkActive="active" class="nav-item" (click)="mobileNavOpen = false"
+        [attr.title]="sidebarCollapsed ? 'Candidates' : null">
         <span class="icon"><i class="fas fa-user-friends"></i></span>
         <span class="nav-label">Candidates</span>
       </a>
-      <a
-        routerLink="offers"
-        routerLinkActive="active"
-        class="nav-item"
-        (click)="mobileNavOpen = false"
-        [attr.title]="sidebarCollapsed ? 'Offers' : null"
-      >
+      <a routerLink="offers" routerLinkActive="active" class="nav-item" (click)="mobileNavOpen = false"
+        [attr.title]="sidebarCollapsed ? 'Offers' : null">
         <span class="icon"><i class="fas fa-handshake"></i></span>
         <span class="nav-label">Offers</span>
       </a>
@@ -92,12 +50,8 @@
     <div class="sidebar-logout">
       <div class="app-sidebar-actions app-sidebar-actions--padded">
         <app-theme-toggle [compact]="sidebarCollapsed"></app-theme-toggle>
-        <button
-          type="button"
-          class="sidebar-collapse-btn"
-          (click)="toggleSidebar()"
-          [title]="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-        >
+        <button type="button" class="sidebar-collapse-btn" (click)="toggleSidebar()"
+          [title]="sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">
           <i [class]="sidebarCollapsed ? 'fas fa-chevron-right' : 'fas fa-chevron-left'" aria-hidden="true"></i>
           <span class="nav-label">Collapse</span>
         </button>
@@ -117,4 +71,17 @@
       <router-outlet></router-outlet>
     </div>
   </main>
+</div>
+
+<!-- Real-time Notifications Overlay -->
+<div class="rt-notification-container" *ngIf="currentNotification">
+  <div class="rt-notification-card" [class.new-app]="currentNotification.type === 'CANDIDATE_APPLIED'">
+    <div class="rt-icon">
+       <i [class]="currentNotification.type === 'CANDIDATE_APPLIED' ? 'fas fa-user-plus' : 'fas fa-info-circle'"></i>
+    </div>
+    <div class="rt-content">
+       <strong>Notification</strong>
+       <p>{{ currentNotification.message }}</p>
+    </div>
+  </div>
 </div>

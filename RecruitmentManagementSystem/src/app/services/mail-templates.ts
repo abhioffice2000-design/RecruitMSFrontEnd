@@ -14,7 +14,9 @@ export type MailEvent =
   | 'OFFER_SENT'
   | 'OFFER_ACCEPTED'
   | 'OFFER_REJECTED'
-  | 'OFFER_ARGUED';
+  | 'OFFER_ARGUED'
+  | 'OFFER_NEGOTIATED'
+  | 'MANDATORY_DOCUMENTS_REQUESTED';
 
 export type MailTemplateData = Record<string, any>;
 
@@ -369,8 +371,9 @@ export function buildMailBody(event: MailEvent, data: MailTemplateData): { subje
       return { subject, body: baseEmailHtml('Offer Rejected', contentHtml) };
     }
 
-    case 'OFFER_ARGUED': {
-      const subject = `Offer argued for review: ${data['jobTitle'] || 'Job'}`;
+    case 'OFFER_ARGUED':
+    case 'OFFER_NEGOTIATED': {
+      const subject = `Offer negotiated for review: ${data['jobTitle'] || 'Job'}`;
       const detailsTableHtml =
         `<table width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse; border:1px solid #E5E7EB; border-radius:10px;'>` +
         row('Candidate', data['candidateName']) +
@@ -378,11 +381,27 @@ export function buildMailBody(event: MailEvent, data: MailTemplateData): { subje
         `</table>`;
       const contentHtml = standardMailContent({
         name: data['recipientName'] || 'User',
-        introLines: ['The candidate has submitted an <b>offer argument</b> for review.'],
+        introLines: ['The candidate has submitted an <b>offer negotiation request</b> for review.'],
         detailsTableHtml,
         noteLine: 'HR will review and provide the final outcome.'
       });
-      return { subject, body: baseEmailHtml('Offer Argued', contentHtml) };
+      return { subject, body: baseEmailHtml('Offer Negotiated', contentHtml) };
+    }
+
+    case 'MANDATORY_DOCUMENTS_REQUESTED': {
+      const subject = `Action Required: Please upload mandatory documents — ${data['jobTitle'] || 'Job'}`;
+      const contentHtml = standardMailContent({
+        name: data['candidateName'],
+        introLines: [
+          'HR has requested you to upload the <b>mandatory documents</b> required for your onboarding process.',
+          'Please log in to the <b>Candidate Portal</b> and visit the <b>Inbox</b> or <b>My Applications</b> section to upload the following:',
+          '<ul><li>Offer Letter E-Sign</li><li>Aadhar Card</li><li>PAN Card</li><li>Last Salary Slip</li></ul>'
+        ],
+        ctaUrl: data['portalUrl'],
+        ctaText: 'Go to Candidate Portal',
+        noteLine: 'Completing this step promptly will help accelerate your onboarding.'
+      });
+      return { subject, body: baseEmailHtml('Document Upload Request', contentHtml) };
     }
 
     default: {
